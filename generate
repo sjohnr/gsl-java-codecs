@@ -1,0 +1,1 @@
+gsl -q -script:codecs/$1 -package:$2 -author:$USER $3
