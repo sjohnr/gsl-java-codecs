@@ -144,13 +144,13 @@ public class $(ClassName) {
 	//  Network data encoding macros
 
 	//  Put a 1-byte number to the frame
-	private final void putNumber1(int value) {
+	protected final void putNumber1(int value) {
 		needle.put((byte) value);
 	}
 
 	//  Get a 1-byte number to the frame
 	//  then make it unsigned
-	private int getNumber1() { 
+	protected final int getNumber1() { 
 		int value = needle.get(); 
 		if (value < 0)
 			value =(0xff) & value;
@@ -158,12 +158,12 @@ public class $(ClassName) {
 	}
 
 	//  Put a 2-byte number to the frame
-	private final void putNumber2(int value) {
+	protected final void putNumber2(int value) {
 		needle.putShort((short) value);
 	}
 
 	//  Get a 2-byte number to the frame
-	private int getNumber2() { 
+	protected final int getNumber2() { 
 		int value = needle.getShort(); 
 		if (value < 0)
 			value =(0xffff) & value;
@@ -171,13 +171,13 @@ public class $(ClassName) {
 	}
 
 	//  Put a 4-byte number to the frame
-	private final void putNumber4(long value)  {
+	protected final void putNumber4(long value)  {
 		needle.putInt((int) value);
 	}
 
 	//  Get a 4-byte number to the frame
 	//  then make it unsigned
-	private long getNumber4()  { 
+	protected final long getNumber4()  { 
 		long value = needle.getInt(); 
 		if (value < 0)
 			value =(0xffffffff) & value;
@@ -185,22 +185,21 @@ public class $(ClassName) {
 	}
 
 	//  Put a 8-byte number to the frame
-	public void putNumber8(long value)  {
+	protected final void putNumber8(long value)  {
 		needle.putLong(value);
 	}
 
 	//  Get a 8-byte number to the frame
-	public long getNumber8()  {
+	protected final long getNumber8()  {
 		return needle.getLong();
 	}
 
-
 	//  Put a block to the frame
-	private void putBlock(byte[] value, int size)  {
+	protected final void putBlock(byte[] value, int size)  {
 		needle.put(value, 0, size);
 	}
 
-	private byte[] getBlock(int size)  {
+	protected final byte[] getBlock(int size)  {
 		byte[] value = new byte[size]; 
 		needle.get(value);
 
@@ -208,13 +207,13 @@ public class $(ClassName) {
 	}
 
 	//  Put a string to the frame
-	public void putString(String value)  {
+	protected final void putString(String value)  {
 		needle.put((byte) value.length());
 		needle.put(value.getBytes());
 	}
 
 	//  Get a string from the frame
-	public String getString()  {
+	protected final String getString()  {
 		int size = getNumber1();
 		byte[] value = new byte[size];
 		needle.get(value);
@@ -228,7 +227,7 @@ public class $(ClassName) {
 	 * 
 	 * @param input The socket used to receive this $(ClassName)
 	 */
-	public static $(ClassName) recv(Socket input) {
+	public static $(ClassName) receive(Socket input) {
 		assert (input != null);
 		$(ClassName) self = new $(ClassName)(0);
 		ZFrame frame = null;
@@ -266,8 +265,6 @@ public class $(ClassName) {
 
 			//  Get message id, which is first byte in frame
 			self.id = self.getNumber1();
-			int listSize;
-			int hashSize;
 
 			switch (self.id) {
 .for class.message
@@ -292,16 +289,16 @@ public class $(ClassName) {
 						throw new IllegalArgumentException();
 .            endif
 .        elsif type = "strings"
-					listSize = self.getNumber1();
+					int $(name)ListSize = self.getNumber1();
 					self.$(name) = new ArrayList<String>();
-					while (listSize-- > 0) {
+					while ($(name)ListSize-- > 0) {
 						String string = self.getString();
 						self.$(name).add(string);
 					}
 .        elsif type = "dictionary"
-					hashSize = self.getNumber1();
+					int $(name)HashSize = self.getNumber1();
 					self.$(name) = new HashMap<String, String>();
-					while (hashSize-- > 0) {
+					while ($(name)HashSize-- > 0) {
 						String string = self.getString();
 						String[] kv = string.split("=");
 						self.$(name).put(kv[0], kv[1]);
@@ -324,7 +321,7 @@ public class $(ClassName) {
 			return self;
 		} catch (Exception e) {
 			//  Error returns
-			System.out.printf("E: malformed message '%d'\\n", self.id);
+			System.out.printf("E: malformed message '%d'\\n", Integer.valueOf(self.id));
 			self.destroy();
 			return null;
 		} finally {
@@ -398,7 +395,7 @@ public class $(ClassName) {
 				
 .endfor
 			default:
-				System.out.printf("E: bad message type '%d', not sent\\n", id);
+				System.out.printf("E: bad message type '%d', not sent\\n", Integer.valueOf(id));
 				assert (false);
 		}
 
@@ -589,6 +586,7 @@ public class $(ClassName) {
 	/**
 	 * Print contents of message to stdout.
 	 */
+	@SuppressWarnings("boxing")
 	public void dump() {
 		switch (id) {
 .for class.message
@@ -599,7 +597,7 @@ public class $(ClassName) {
 .            if defined(field.value)
 				System.out.printf("	$(name)=$(field.value)\\n");
 .            else
-				System.out.printf("	$(name)=%d\\n",(long)$(name));
+				System.out.printf("	$(name)=%d\\n", $(name));
 .            endif
 .        elsif type = "octets"
 				System.out.printf("	$(name)=");
@@ -787,7 +785,7 @@ public class $(ClassName) {
 	 * @param value The collection of strings
 	 */
 	public void set$(Name)(Collection<String> value) {
-		$(name) = new ArrayList(value);
+		$(name) = new ArrayList<String>(value);
 	}
 .    elsif type = "dictionary"
 
@@ -828,7 +826,7 @@ public class $(ClassName) {
 		if ($(name) != null)
 			string = $(name).get(key);
 		if (string != null)
-			value = Long.valueOf(string);
+			value = Long.parseLong(string);
 
 		return value;
 	}
@@ -939,17 +937,17 @@ public class Test$(ClassName) {
 		self.set$(Name)("Life is short but Now lasts for ever");
 .        elsif type = "strings"
 		self.add$(stem_s(Name))("Name: %s", "Brutus");
-		self.add$(stem_s(Name))("Age: %d", 43);
+		self.add$(stem_s(Name))("Age: %d", Integer.valueOf(43));
 .        elsif type = "dictionary"
 		self.put$(stem_s(Name))("Name", "Brutus");
-		self.put$(stem_s(Name))("Age", "%d", 43);
+		self.put$(stem_s(Name))("Age", "%d", Integer.valueOf(43));
 .        elsif type = "frame"
 		self.set$(Name)(new ZFrame("Captcha Diem"));
 .        endif
 .    endfor
 		self.send(output);
 	
-		self = $(ClassName).recv(input);
+		self = $(ClassName).receive(input);
 		assert (self != null);
 .    for field where !defined(value)
 .        if type = "number"
@@ -974,7 +972,7 @@ public class Test$(ClassName) {
 		self.destroy();
 .endfor
 
-		ctx.destroy();
+		ctx.close();
 		System.out.printf("OK\\n");
 	}
 }

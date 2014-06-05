@@ -1,0 +1,46 @@
+<class name="grid_message" signature="1" title="Class encapsulating communication between GridMasters and GridFollowers">
+	This is the GRID protocol.
+
+	<include filename="license.xml" />
+
+	<!-- Protocol constants -->
+	<define name="VERSION" value="1" />
+
+	<!-- Headers for all messages -->
+	<header>
+		<field name="sequence" type="number" size="2" />
+	</header>
+
+	<!-- Protocol messages -->
+
+	<message name="JOIN" id="1">
+		<field name="cluster" type="string" />
+		Request membership to a cluster.
+	</message>
+
+	<message name="EXIT" id="2">
+		<field name="cluster" type="string" />
+		Relinquish membership from a cluster.
+	</message>
+
+	<message name="PING" id="3">
+		Ping a peer that has gone silent.
+	</message>
+
+	<message name="ECHO" id="4">
+		Reply to a peer's ping.
+	</message>
+
+	<message name="BCAST" id="5">
+		<field name="cluster" type="string" />
+		<field name="content" type="frame" />
+		Send out a state change for followers.
+	</message>
+
+	<message name="CONNECT" id="6">
+		<field name="ip" type="string" />
+		<field name="clusters" type="strings" />
+		<field name="headers" type="dictionary" />
+		Send connection information to establish a connection with a new peer.
+	</message>
+</class>
