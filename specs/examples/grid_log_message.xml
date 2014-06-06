@@ -18,12 +18,12 @@
 	<define name="EVENT_TIMEOUT" value="4" />
 
 	<message name="LOG" id="1">
-    	<field name="level"   type="number" size="1" />
-    	<field name="event"   type="number" size="1" />
-    	<field name="node"    type="number" size="2" />
-    	<field name="peer"    type="number" size="2" />
-    	<field name="time"    type="number" size="8" />
-    	<field name="message" type="string" />
+		<field name="level"   type="number" size="1" />
+		<field name="event"   type="number" size="1" />
+		<field name="node"    type="number" size="2" />
+		<field name="peer"    type="number" size="2" />
+		<field name="time"    type="number" size="8" />
+		<field name="message" type="string" />
 		Log an event.
 	</message>
 </class>
