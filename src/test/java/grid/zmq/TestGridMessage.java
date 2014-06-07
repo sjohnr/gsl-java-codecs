@@ -33,6 +33,53 @@ public class TestGridMessage {
 		
 		//  Encode/send/decode and verify each message type
 
+		self = new GridMessage(GridMessage.CONNECT);
+		self.setSequence((byte) 123);
+		self.setIp("Life is short but Now lasts for ever");
+		self.setPort((byte) 123);
+		self.addCluster("Name: %s", "Brutus");
+		self.addCluster("Age: %d", Integer.valueOf(43));
+		self.putHeader("Name", "Brutus");
+		self.putHeader("Age", "%d", Integer.valueOf(43));
+		self.send(output);
+	
+		self = GridMessage.receive(input);
+		assert (self != null);
+		assertEquals(self.getSequence(), 123);
+		assertEquals(self.getIp(), "Life is short but Now lasts for ever");
+		assertEquals(self.getPort(), 123);
+		assertEquals(self.getClusters().size(), 2);
+		assertEquals(self.getClusters().get(0), "Name: Brutus");
+		assertEquals(self.getClusters().get(1), "Age: 43");
+		assertEquals(self.getHeaders().size(), 2);
+		assertEquals(self.getHeaderString("Name", "?"), "Brutus");
+		assertEquals(self.getHeaderNumber("Age", 0), 43);
+		self.destroy();
+
+		self = new GridMessage(GridMessage.WHISPER);
+		self.setSequence((byte) 123);
+		self.setContent(new ZFrame("Captcha Diem"));
+		self.send(output);
+	
+		self = GridMessage.receive(input);
+		assert (self != null);
+		assertEquals(self.getSequence(), 123);
+		assertTrue(self.getContent().streq("Captcha Diem"));
+		self.destroy();
+
+		self = new GridMessage(GridMessage.BROADCAST);
+		self.setSequence((byte) 123);
+		self.setCluster("Life is short but Now lasts for ever");
+		self.setContent(new ZFrame("Captcha Diem"));
+		self.send(output);
+	
+		self = GridMessage.receive(input);
+		assert (self != null);
+		assertEquals(self.getSequence(), 123);
+		assertEquals(self.getCluster(), "Life is short but Now lasts for ever");
+		assertTrue(self.getContent().streq("Captcha Diem"));
+		self.destroy();
+
 		self = new GridMessage(GridMessage.JOIN);
 		self.setSequence((byte) 123);
 		self.setCluster("Life is short but Now lasts for ever");
@@ -71,40 +118,6 @@ public class TestGridMessage {
 		self = GridMessage.receive(input);
 		assert (self != null);
 		assertEquals(self.getSequence(), 123);
-		self.destroy();
-
-		self = new GridMessage(GridMessage.BCAST);
-		self.setSequence((byte) 123);
-		self.setCluster("Life is short but Now lasts for ever");
-		self.setContent(new ZFrame("Captcha Diem"));
-		self.send(output);
-	
-		self = GridMessage.receive(input);
-		assert (self != null);
-		assertEquals(self.getSequence(), 123);
-		assertEquals(self.getCluster(), "Life is short but Now lasts for ever");
-		assertTrue(self.getContent().streq("Captcha Diem"));
-		self.destroy();
-
-		self = new GridMessage(GridMessage.CONNECT);
-		self.setSequence((byte) 123);
-		self.setIp("Life is short but Now lasts for ever");
-		self.addCluster("Name: %s", "Brutus");
-		self.addCluster("Age: %d", Integer.valueOf(43));
-		self.putHeader("Name", "Brutus");
-		self.putHeader("Age", "%d", Integer.valueOf(43));
-		self.send(output);
-	
-		self = GridMessage.receive(input);
-		assert (self != null);
-		assertEquals(self.getSequence(), 123);
-		assertEquals(self.getIp(), "Life is short but Now lasts for ever");
-		assertEquals(self.getClusters().size(), 2);
-		assertEquals(self.getClusters().get(0), "Name: Brutus");
-		assertEquals(self.getClusters().get(1), "Age: 43");
-		assertEquals(self.getHeaders().size(), 2);
-		assertEquals(self.getHeaderString("Name", "?"), "Brutus");
-		assertEquals(self.getHeaderNumber("Age", 0), 43);
 		self.destroy();
 
 		ctx.close();

@@ -36,6 +36,19 @@ import org.zeromq.ZMQ.Socket;
  * 
  * The specification for this class is as follows:
  * <pre class="text">
+ *  CONNECT - Send connection information to establish a connection with a new peer.
+ *	  sequence		number 2
+ *	  ip		string
+ *	  port		number 2
+ *	  clusters		strings
+ *	  headers		dictionary
+ *  WHISPER - Send a message to a peer.
+ *	  sequence		number 2
+ *	  content		frame
+ *  BROADCAST - Send out a state change for followers.
+ *	  sequence		number 2
+ *	  cluster		string
+ *	  content		frame
  *  JOIN - Request membership to a cluster.
  *	  sequence		number 2
  *	  cluster		string
@@ -46,15 +59,6 @@ import org.zeromq.ZMQ.Socket;
  *	  sequence		number 2
  *  ECHO - Reply to a peer's ping.
  *	  sequence		number 2
- *  BCAST - Send out a state change for followers.
- *	  sequence		number 2
- *	  cluster		string
- *	  content		frame
- *  CONNECT - Send connection information to establish a connection with a new peer.
- *	  sequence		number 2
- *	  ip		string
- *	  clusters		strings
- *	  headers		dictionary
  * </pre>
  * 
  * @author sriesenberg
@@ -62,24 +66,26 @@ import org.zeromq.ZMQ.Socket;
 public class GridMessage {
 	public static final int GRID_MESSAGE_VERSION	= 1;
 	
-	public static final int JOIN			= 1;
-	public static final int EXIT			= 2;
-	public static final int PING			= 3;
-	public static final int ECHO			= 4;
-	public static final int BCAST			= 5;
-	public static final int CONNECT			= 6;
+	public static final int CONNECT			= 1;
+	public static final int WHISPER			= 2;
+	public static final int BROADCAST			= 3;
+	public static final int JOIN			= 4;
+	public static final int EXIT			= 5;
+	public static final int PING			= 6;
+	public static final int ECHO			= 7;
 	
 	//  Structure of our class
 	private ZFrame address;		//  Address of peer if any
 	private int id;				//  GridMessage message ID
 	private ByteBuffer needle;	//  Read/write pointer for serialization
 	private int sequence;
-	private String cluster;
-	private ZFrame content;
 	private String ip;
+	private int port;
 	private List<String> clusters;
 	private Map<String, String> headers;
 	private int headersBytes;
+	private ZFrame content;
+	private String cluster;
 	
 	/**
 	 * Create a new GridMessage.
@@ -227,6 +233,43 @@ public class GridMessage {
 			self.id = self.getNumber1();
 
 			switch (self.id) {
+				case CONNECT:
+					self.sequence = self.getNumber2();
+					self.ip = self.getString();
+					self.port = self.getNumber2();
+					int clustersListSize = self.getNumber1();
+					self.clusters = new ArrayList<String>();
+					while (clustersListSize-- > 0) {
+						String string = self.getString();
+						self.clusters.add(string);
+					}
+					int headersHashSize = self.getNumber1();
+					self.headers = new HashMap<String, String>();
+					while (headersHashSize-- > 0) {
+						String string = self.getString();
+						String[] kv = string.split("=");
+						self.headers.put(kv[0], kv[1]);
+					}
+
+					break;
+
+				case WHISPER:
+					self.sequence = self.getNumber2();
+					//  Get next frame, leave current untouched
+					if (!input.hasReceiveMore())
+						throw new IllegalArgumentException();
+					self.content = ZFrame.recvFrame(input);
+					break;
+
+				case BROADCAST:
+					self.sequence = self.getNumber2();
+					self.cluster = self.getString();
+					//  Get next frame, leave current untouched
+					if (!input.hasReceiveMore())
+						throw new IllegalArgumentException();
+					self.content = ZFrame.recvFrame(input);
+					break;
+
 				case JOIN:
 					self.sequence = self.getNumber2();
 					self.cluster = self.getString();
@@ -243,34 +286,6 @@ public class GridMessage {
 
 				case ECHO:
 					self.sequence = self.getNumber2();
-					break;
-
-				case BCAST:
-					self.sequence = self.getNumber2();
-					self.cluster = self.getString();
-					//  Get next frame, leave current untouched
-					if (!input.hasReceiveMore())
-						throw new IllegalArgumentException();
-					self.content = ZFrame.recvFrame(input);
-					break;
-
-				case CONNECT:
-					self.sequence = self.getNumber2();
-					self.ip = self.getString();
-					int clustersListSize = self.getNumber1();
-					self.clusters = new ArrayList<String>();
-					while (clustersListSize-- > 0) {
-						String string = self.getString();
-						self.clusters.add(string);
-					}
-					int headersHashSize = self.getNumber1();
-					self.headers = new HashMap<String, String>();
-					while (headersHashSize-- > 0) {
-						String string = self.getString();
-						String[] kv = string.split("=");
-						self.headers.put(kv[0], kv[1]);
-					}
-
 					break;
 
 				default:
@@ -311,43 +326,6 @@ public class GridMessage {
 		//  Calculate size of serialized data
 		int frameSize = 2 + 1;		  //  Signature and message ID
 		switch (id) {
-			case JOIN:
-				//  sequence is a 2-byte integer
-				frameSize += 2;
-				//  cluster is a string with 1-byte length
-				frameSize++;		//  Size is one octet
-				if (cluster != null)
-					frameSize += cluster.length();
-				break;
-				
-			case EXIT:
-				//  sequence is a 2-byte integer
-				frameSize += 2;
-				//  cluster is a string with 1-byte length
-				frameSize++;		//  Size is one octet
-				if (cluster != null)
-					frameSize += cluster.length();
-				break;
-				
-			case PING:
-				//  sequence is a 2-byte integer
-				frameSize += 2;
-				break;
-				
-			case ECHO:
-				//  sequence is a 2-byte integer
-				frameSize += 2;
-				break;
-				
-			case BCAST:
-				//  sequence is a 2-byte integer
-				frameSize += 2;
-				//  cluster is a string with 1-byte length
-				frameSize++;		//  Size is one octet
-				if (cluster != null)
-					frameSize += cluster.length();
-				break;
-				
 			case CONNECT:
 				//  sequence is a 2-byte integer
 				frameSize += 2;
@@ -355,6 +333,8 @@ public class GridMessage {
 				frameSize++;		//  Size is one octet
 				if (ip != null)
 					frameSize += ip.length();
+				//  port is a 2-byte integer
+				frameSize += 2;
 				//  clusters is an array of strings
 				frameSize++;		//  Size is one octet
 				if (clusters != null) {
@@ -372,6 +352,48 @@ public class GridMessage {
 				}
 				break;
 				
+			case WHISPER:
+				//  sequence is a 2-byte integer
+				frameSize += 2;
+				break;
+				
+			case BROADCAST:
+				//  sequence is a 2-byte integer
+				frameSize += 2;
+				//  cluster is a string with 1-byte length
+				frameSize++;		//  Size is one octet
+				if (cluster != null)
+					frameSize += cluster.length();
+				break;
+				
+			case JOIN:
+				//  sequence is a 2-byte integer
+				frameSize += 2;
+				//  cluster is a string with 1-byte length
+				frameSize++;		//  Size is one octet
+				if (cluster != null)
+					frameSize += cluster.length();
+				break;
+				
+			case EXIT:
+				//  sequence is a 2-byte integer
+				frameSize += 2;
+				//  cluster is a string with 1-byte length
+				frameSize++;		//  Size is one octet
+				if (cluster != null)
+					frameSize += cluster.length();
+				break;
+				
+			case PING:
+				//  sequence is a 2-byte integer
+				frameSize += 2;
+				break;
+				
+			case ECHO:
+				//  sequence is a 2-byte integer
+				frameSize += 2;
+				break;
+				
 			default:
 				System.out.printf("E: bad message type '%d', not sent\n", Integer.valueOf(id));
 				assert (false);
@@ -385,6 +407,45 @@ public class GridMessage {
 		putNumber1((byte) id);
 
 		switch (id) {
+			case CONNECT:
+				putNumber2(sequence);
+				if (ip != null)
+					putString(ip);
+				else
+					putNumber1((byte) 0);	  //  Empty string
+				putNumber2(port);
+				if (clusters != null) {
+					putNumber1((byte) clusters.size());
+					for (String value : clusters) {
+						putString(value);
+					}
+				}
+				else
+					putNumber1((byte) 0);	  //  Empty string array
+				if (headers != null) {
+					putNumber1((byte) headers.size());
+					for (Map.Entry<String, String> entry: headers.entrySet()) {
+						headersWrite(entry, this);
+					}
+				}
+				else
+					putNumber1((byte) 0);	  //  Empty dictionary
+				break;
+			
+			case WHISPER:
+				putNumber2(sequence);
+				frameFlags = ZMQ.SNDMORE;
+				break;
+			
+			case BROADCAST:
+				putNumber2(sequence);
+				if (cluster != null)
+					putString(cluster);
+				else
+					putNumber1((byte) 0);	  //  Empty string
+				frameFlags = ZMQ.SNDMORE;
+				break;
+			
 			case JOIN:
 				putNumber2(sequence);
 				if (cluster != null)
@@ -407,39 +468,6 @@ public class GridMessage {
 			
 			case ECHO:
 				putNumber2(sequence);
-				break;
-			
-			case BCAST:
-				putNumber2(sequence);
-				if (cluster != null)
-					putString(cluster);
-				else
-					putNumber1((byte) 0);	  //  Empty string
-				frameFlags = ZMQ.SNDMORE;
-				break;
-			
-			case CONNECT:
-				putNumber2(sequence);
-				if (ip != null)
-					putString(ip);
-				else
-					putNumber1((byte) 0);	  //  Empty string
-				if (clusters != null) {
-					putNumber1((byte) clusters.size());
-					for (String value : clusters) {
-						putString(value);
-					}
-				}
-				else
-					putNumber1((byte) 0);	  //  Empty string array
-				if (headers != null) {
-					putNumber1((byte) headers.size());
-					for (Map.Entry<String, String> entry: headers.entrySet()) {
-						headersWrite(entry, this);
-					}
-				}
-				else
-					putNumber1((byte) 0);	  //  Empty dictionary
 				break;
 			
 		}
@@ -462,7 +490,17 @@ public class GridMessage {
 
 		//  Now send any frame fields, in order
 		switch (id) {
-			case BCAST:
+			case WHISPER:
+				//  If content isn't set, send an empty frame
+				if (content == null)
+					content = new ZFrame("".getBytes());
+				if (!content.sendAndDestroy(socket, 0)) {
+					frame.destroy();
+					destroy();
+					return false;
+				}
+				break;
+			case BROADCAST:
 				//  If content isn't set, send an empty frame
 				if (content == null)
 					content = new ZFrame("".getBytes());
@@ -477,6 +515,50 @@ public class GridMessage {
 		//  Destroy GridMessage object
 		destroy();
 		return true;
+	}
+
+	/**
+	 * Send the CONNECT to the socket in one step.
+	 */
+	public static void sendConnect(Socket output,
+			int sequence,
+			String ip,
+			int port,
+			Collection<String> clusters,
+			Map<String, String> headers) {
+		GridMessage self = new GridMessage(GridMessage.CONNECT);
+		self.setSequence(sequence);
+		self.setIp(ip);
+		self.setPort(port);
+		self.setClusters(new ArrayList<String>(clusters));
+		self.setHeaders(new HashMap<String, String>(headers));
+		self.send(output); 
+	}
+
+	/**
+	 * Send the WHISPER to the socket in one step.
+	 */
+	public static void sendWhisper(Socket output,
+			int sequence,
+			ZFrame content) {
+		GridMessage self = new GridMessage(GridMessage.WHISPER);
+		self.setSequence(sequence);
+		self.setContent(content.duplicate());
+		self.send(output); 
+	}
+
+	/**
+	 * Send the BROADCAST to the socket in one step.
+	 */
+	public static void sendBroadcast(Socket output,
+			int sequence,
+			String cluster,
+			ZFrame content) {
+		GridMessage self = new GridMessage(GridMessage.BROADCAST);
+		self.setSequence(sequence);
+		self.setCluster(cluster);
+		self.setContent(content.duplicate());
+		self.send(output); 
 	}
 
 	/**
@@ -524,36 +606,6 @@ public class GridMessage {
 	}
 
 	/**
-	 * Send the BCAST to the socket in one step.
-	 */
-	public static void sendBcast(Socket output,
-			int sequence,
-			String cluster,
-			ZFrame content) {
-		GridMessage self = new GridMessage(GridMessage.BCAST);
-		self.setSequence(sequence);
-		self.setCluster(cluster);
-		self.setContent(content.duplicate());
-		self.send(output); 
-	}
-
-	/**
-	 * Send the CONNECT to the socket in one step.
-	 */
-	public static void sendConnect(Socket output,
-			int sequence,
-			String ip,
-			Collection<String> clusters,
-			Map<String, String> headers) {
-		GridMessage self = new GridMessage(GridMessage.CONNECT);
-		self.setSequence(sequence);
-		self.setIp(ip);
-		self.setClusters(new ArrayList<String>(clusters));
-		self.setHeaders(new HashMap<String, String>(headers));
-		self.send(output); 
-	}
-
-	/**
 	 * Duplicate the GridMessage message.
 	 * 
 	 * @param self The instance of GridMessage to duplicate
@@ -566,6 +618,22 @@ public class GridMessage {
 		if (self.address != null)
 			copy.address = self.address.duplicate();
 		switch (self.id) {
+			case CONNECT:
+				copy.sequence = self.sequence;
+				copy.ip = self.ip;
+				copy.port = self.port;
+				copy.clusters = new ArrayList<String>(self.clusters);
+				copy.headers = new HashMap<String, String>(self.headers);
+				break;
+			case WHISPER:
+				copy.sequence = self.sequence;
+				copy.content = self.content.duplicate();
+				break;
+			case BROADCAST:
+				copy.sequence = self.sequence;
+				copy.cluster = self.cluster;
+				copy.content = self.content.duplicate();
+				break;
 			case JOIN:
 				copy.sequence = self.sequence;
 				copy.cluster = self.cluster;
@@ -579,17 +647,6 @@ public class GridMessage {
 				break;
 			case ECHO:
 				copy.sequence = self.sequence;
-				break;
-			case BCAST:
-				copy.sequence = self.sequence;
-				copy.cluster = self.cluster;
-				copy.content = self.content.duplicate();
-				break;
-			case CONNECT:
-				copy.sequence = self.sequence;
-				copy.ip = self.ip;
-				copy.clusters = new ArrayList<String>(self.clusters);
-				copy.headers = new HashMap<String, String>(self.headers);
 				break;
 		}
 		return copy;
@@ -611,6 +668,73 @@ public class GridMessage {
 	@SuppressWarnings("boxing")
 	public void dump() {
 		switch (id) {
+			case CONNECT:
+				System.out.println("CONNECT:");
+				System.out.printf("	sequence=%d\n", sequence);
+				if (ip != null)
+					System.out.printf("	ip='%s'\n", ip);
+				else
+					System.out.printf("	ip=\n");
+				System.out.printf("	port=%d\n", port);
+				System.out.printf("	clusters={");
+				if (clusters != null) {
+					for (String value : clusters) {
+						System.out.printf(" '%s'", value);
+					}
+				}
+				System.out.printf(" }\n");
+				System.out.printf("	headers={\n");
+				if (headers != null) {
+					for (Map.Entry<String, String> entry : headers.entrySet())
+						headersDump(entry, this);
+				}
+				System.out.printf("	}\n");
+				break;
+			
+			case WHISPER:
+				System.out.println("WHISPER:");
+				System.out.printf("	sequence=%d\n", sequence);
+				System.out.printf("	content={\n");
+				if (content != null) {
+					int size = content.size();
+					byte[] data = content.getData();
+					System.out.printf("		size=%d\n", content.size());
+					if (size > 32)
+						size = 32;
+					int contentIndex;
+					for (contentIndex = 0; contentIndex < size; contentIndex++) {
+						if (contentIndex != 0 &&(contentIndex % 4 == 0))
+							System.out.printf("-");
+						System.out.printf("%02X", data[contentIndex]);
+					}
+				}
+				System.out.printf("	}\n");
+				break;
+			
+			case BROADCAST:
+				System.out.println("BROADCAST:");
+				System.out.printf("	sequence=%d\n", sequence);
+				if (cluster != null)
+					System.out.printf("	cluster='%s'\n", cluster);
+				else
+					System.out.printf("	cluster=\n");
+				System.out.printf("	content={\n");
+				if (content != null) {
+					int size = content.size();
+					byte[] data = content.getData();
+					System.out.printf("		size=%d\n", content.size());
+					if (size > 32)
+						size = 32;
+					int contentIndex;
+					for (contentIndex = 0; contentIndex < size; contentIndex++) {
+						if (contentIndex != 0 &&(contentIndex % 4 == 0))
+							System.out.printf("-");
+						System.out.printf("%02X", data[contentIndex]);
+					}
+				}
+				System.out.printf("	}\n");
+				break;
+			
 			case JOIN:
 				System.out.println("JOIN:");
 				System.out.printf("	sequence=%d\n", sequence);
@@ -637,52 +761,6 @@ public class GridMessage {
 			case ECHO:
 				System.out.println("ECHO:");
 				System.out.printf("	sequence=%d\n", sequence);
-				break;
-			
-			case BCAST:
-				System.out.println("BCAST:");
-				System.out.printf("	sequence=%d\n", sequence);
-				if (cluster != null)
-					System.out.printf("	cluster='%s'\n", cluster);
-				else
-					System.out.printf("	cluster=\n");
-				System.out.printf("	content={\n");
-				if (content != null) {
-					int size = content.size();
-					byte[] data = content.getData();
-					System.out.printf("		size=%d\n", content.size());
-					if (size > 32)
-						size = 32;
-					int contentIndex;
-					for (contentIndex = 0; contentIndex < size; contentIndex++) {
-						if (contentIndex != 0 &&(contentIndex % 4 == 0))
-							System.out.printf("-");
-						System.out.printf("%02X", data[contentIndex]);
-					}
-				}
-				System.out.printf("	}\n");
-				break;
-			
-			case CONNECT:
-				System.out.println("CONNECT:");
-				System.out.printf("	sequence=%d\n", sequence);
-				if (ip != null)
-					System.out.printf("	ip='%s'\n", ip);
-				else
-					System.out.printf("	ip=\n");
-				System.out.printf("	clusters={");
-				if (clusters != null) {
-					for (String value : clusters) {
-						System.out.printf(" '%s'", value);
-					}
-				}
-				System.out.printf(" }\n");
-				System.out.printf("	headers={\n");
-				if (headers != null) {
-					for (Map.Entry<String, String> entry : headers.entrySet())
-						headersDump(entry, this);
-				}
-				System.out.printf("	}\n");
 				break;
 			
 		}
@@ -745,44 +823,6 @@ public class GridMessage {
 	}
 
 	/**
-	 * Get the cluster field.
-	 * 
-	 * @return The cluster field
-	 */
-	public String getCluster() {
-		return cluster;
-	}
-
-	/**
-	 * Set the cluster field.
-	 * 
-	 * @param cluster The cluster field
-	 */
-	public void setCluster(String format, Object... args) {
-		//  Format into newly allocated string
-		cluster = String.format(format, args);
-	}
-	/**
-	 * Get the content field.
-	 * 
-	 * @return The content field
-	 */
-	public ZFrame getContent() {
-		return content;
-	}
-
-	/**
-	 * Set the content field, and takes ownership of supplied frame.
-	 * 
-	 * @param frame The new content frame
-	 */
-	public void setContent(ZFrame frame) {
-		if (content != null)
-			content.destroy();
-		content = frame;
-	}
-
-	/**
 	 * Get the ip field.
 	 * 
 	 * @return The ip field
@@ -799,6 +839,24 @@ public class GridMessage {
 	public void setIp(String format, Object... args) {
 		//  Format into newly allocated string
 		ip = String.format(format, args);
+	}
+
+	/**
+	 * Get the port field.
+	 * 
+	 * @return The port field
+	 */
+	public int getPort() {
+		return port;
+	}
+
+	/**
+	 * Set the port field.
+	 * 
+	 * @param port The port field
+	 */
+	public void setPort(int port) {
+		this.port = port;
 	}
 
 	/**
@@ -907,5 +965,43 @@ public class GridMessage {
 			headers = value;
 	}
 
+	/**
+	 * Get the content field.
+	 * 
+	 * @return The content field
+	 */
+	public ZFrame getContent() {
+		return content;
+	}
+
+	/**
+	 * Set the content field, and takes ownership of supplied frame.
+	 * 
+	 * @param frame The new content frame
+	 */
+	public void setContent(ZFrame frame) {
+		if (content != null)
+			content.destroy();
+		content = frame;
+	}
+
+	/**
+	 * Get the cluster field.
+	 * 
+	 * @return The cluster field
+	 */
+	public String getCluster() {
+		return cluster;
+	}
+
+	/**
+	 * Set the cluster field.
+	 * 
+	 * @param cluster The cluster field
+	 */
+	public void setCluster(String format, Object... args) {
+		//  Format into newly allocated string
+		cluster = String.format(format, args);
+	}
 }
 
