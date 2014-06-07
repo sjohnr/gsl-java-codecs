@@ -39,6 +39,7 @@ public class TestGridMessage {
 		self.setPort((byte) 123);
 		self.addCluster("Name: %s", "Brutus");
 		self.addCluster("Age: %d", Integer.valueOf(43));
+		self.setStatus((byte) 123);
 		self.putHeader("Name", "Brutus");
 		self.putHeader("Age", "%d", Integer.valueOf(43));
 		self.send(output);
@@ -51,6 +52,7 @@ public class TestGridMessage {
 		assertEquals(self.getClusters().size(), 2);
 		assertEquals(self.getClusters().get(0), "Name: Brutus");
 		assertEquals(self.getClusters().get(1), "Age: 43");
+		assertEquals(self.getStatus(), 123);
 		assertEquals(self.getHeaders().size(), 2);
 		assertEquals(self.getHeaderString("Name", "?"), "Brutus");
 		assertEquals(self.getHeaderNumber("Age", 0), 43);
@@ -83,23 +85,27 @@ public class TestGridMessage {
 		self = new GridMessage(GridMessage.JOIN);
 		self.setSequence((byte) 123);
 		self.setCluster("Life is short but Now lasts for ever");
+		self.setStatus((byte) 123);
 		self.send(output);
 	
 		self = GridMessage.receive(input);
 		assert (self != null);
 		assertEquals(self.getSequence(), 123);
 		assertEquals(self.getCluster(), "Life is short but Now lasts for ever");
+		assertEquals(self.getStatus(), 123);
 		self.destroy();
 
 		self = new GridMessage(GridMessage.EXIT);
 		self.setSequence((byte) 123);
 		self.setCluster("Life is short but Now lasts for ever");
+		self.setStatus((byte) 123);
 		self.send(output);
 	
 		self = GridMessage.receive(input);
 		assert (self != null);
 		assertEquals(self.getSequence(), 123);
 		assertEquals(self.getCluster(), "Life is short but Now lasts for ever");
+		assertEquals(self.getStatus(), 123);
 		self.destroy();
 
 		self = new GridMessage(GridMessage.PING);

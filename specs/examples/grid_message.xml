@@ -17,6 +17,7 @@
 		<field name="ip" type="string" />
 		<field name="port" type="number" size="2" />
 		<field name="clusters" type="strings" />
+		<field name="status" type="number" size="1" />
 		<field name="headers" type="dictionary" />
 		Send connection information to establish a connection with a new peer.
 	</message>
@@ -34,11 +35,13 @@
 
 	<message name="JOIN" id="4">
 		<field name="cluster" type="string" />
+		<field name="status" type="number" size="1" />
 		Request membership to a cluster.
 	</message>
 
 	<message name="EXIT" id="5">
 		<field name="cluster" type="string" />
+		<field name="status" type="number" size="1" />
 		Relinquish membership from a cluster.
 	</message>
 

@@ -41,6 +41,7 @@ import org.zeromq.ZMQ.Socket;
  *	  ip		string
  *	  port		number 2
  *	  clusters		strings
+ *	  status		number 1
  *	  headers		dictionary
  *  WHISPER - Send a message to a peer.
  *	  sequence		number 2
@@ -52,9 +53,11 @@ import org.zeromq.ZMQ.Socket;
  *  JOIN - Request membership to a cluster.
  *	  sequence		number 2
  *	  cluster		string
+ *	  status		number 1
  *  EXIT - Relinquish membership from a cluster.
  *	  sequence		number 2
  *	  cluster		string
+ *	  status		number 1
  *  PING - Ping a peer that has gone silent.
  *	  sequence		number 2
  *  ECHO - Reply to a peer's ping.
@@ -82,6 +85,7 @@ public class GridMessage {
 	private String ip;
 	private int port;
 	private List<String> clusters;
+	private int status;
 	private Map<String, String> headers;
 	private int headersBytes;
 	private ZFrame content;
@@ -243,6 +247,7 @@ public class GridMessage {
 						String string = self.getString();
 						self.clusters.add(string);
 					}
+					self.status = self.getNumber1();
 					int headersHashSize = self.getNumber1();
 					self.headers = new HashMap<String, String>();
 					while (headersHashSize-- > 0) {
@@ -273,11 +278,13 @@ public class GridMessage {
 				case JOIN:
 					self.sequence = self.getNumber2();
 					self.cluster = self.getString();
+					self.status = self.getNumber1();
 					break;
 
 				case EXIT:
 					self.sequence = self.getNumber2();
 					self.cluster = self.getString();
+					self.status = self.getNumber1();
 					break;
 
 				case PING:
@@ -341,6 +348,8 @@ public class GridMessage {
 					for (String value : clusters) 
 						frameSize += 1 + value.length();
 				}
+				//  status is a 1-byte integer
+				frameSize += 1;
 				//  headers is an array of key=value strings
 				frameSize++;		//  Size is one octet
 				if (headers != null) {
@@ -373,6 +382,8 @@ public class GridMessage {
 				frameSize++;		//  Size is one octet
 				if (cluster != null)
 					frameSize += cluster.length();
+				//  status is a 1-byte integer
+				frameSize += 1;
 				break;
 				
 			case EXIT:
@@ -382,6 +393,8 @@ public class GridMessage {
 				frameSize++;		//  Size is one octet
 				if (cluster != null)
 					frameSize += cluster.length();
+				//  status is a 1-byte integer
+				frameSize += 1;
 				break;
 				
 			case PING:
@@ -422,6 +435,7 @@ public class GridMessage {
 				}
 				else
 					putNumber1((byte) 0);	  //  Empty string array
+				putNumber1(status);
 				if (headers != null) {
 					putNumber1((byte) headers.size());
 					for (Map.Entry<String, String> entry: headers.entrySet()) {
@@ -452,6 +466,7 @@ public class GridMessage {
 					putString(cluster);
 				else
 					putNumber1((byte) 0);	  //  Empty string
+				putNumber1(status);
 				break;
 			
 			case EXIT:
@@ -460,6 +475,7 @@ public class GridMessage {
 					putString(cluster);
 				else
 					putNumber1((byte) 0);	  //  Empty string
+				putNumber1(status);
 				break;
 			
 			case PING:
@@ -525,12 +541,14 @@ public class GridMessage {
 			String ip,
 			int port,
 			Collection<String> clusters,
+			int status,
 			Map<String, String> headers) {
 		GridMessage self = new GridMessage(GridMessage.CONNECT);
 		self.setSequence(sequence);
 		self.setIp(ip);
 		self.setPort(port);
 		self.setClusters(new ArrayList<String>(clusters));
+		self.setStatus(status);
 		self.setHeaders(new HashMap<String, String>(headers));
 		self.send(output); 
 	}
@@ -566,10 +584,12 @@ public class GridMessage {
 	 */
 	public static void sendJoin(Socket output,
 			int sequence,
-			String cluster) {
+			String cluster,
+			int status) {
 		GridMessage self = new GridMessage(GridMessage.JOIN);
 		self.setSequence(sequence);
 		self.setCluster(cluster);
+		self.setStatus(status);
 		self.send(output); 
 	}
 
@@ -578,10 +598,12 @@ public class GridMessage {
 	 */
 	public static void sendExit(Socket output,
 			int sequence,
-			String cluster) {
+			String cluster,
+			int status) {
 		GridMessage self = new GridMessage(GridMessage.EXIT);
 		self.setSequence(sequence);
 		self.setCluster(cluster);
+		self.setStatus(status);
 		self.send(output); 
 	}
 
@@ -623,6 +645,7 @@ public class GridMessage {
 				copy.ip = self.ip;
 				copy.port = self.port;
 				copy.clusters = new ArrayList<String>(self.clusters);
+				copy.status = self.status;
 				copy.headers = new HashMap<String, String>(self.headers);
 				break;
 			case WHISPER:
@@ -637,10 +660,12 @@ public class GridMessage {
 			case JOIN:
 				copy.sequence = self.sequence;
 				copy.cluster = self.cluster;
+				copy.status = self.status;
 				break;
 			case EXIT:
 				copy.sequence = self.sequence;
 				copy.cluster = self.cluster;
+				copy.status = self.status;
 				break;
 			case PING:
 				copy.sequence = self.sequence;
@@ -683,6 +708,7 @@ public class GridMessage {
 					}
 				}
 				System.out.printf(" }\n");
+				System.out.printf("	status=%d\n", status);
 				System.out.printf("	headers={\n");
 				if (headers != null) {
 					for (Map.Entry<String, String> entry : headers.entrySet())
@@ -742,6 +768,7 @@ public class GridMessage {
 					System.out.printf("	cluster='%s'\n", cluster);
 				else
 					System.out.printf("	cluster=\n");
+				System.out.printf("	status=%d\n", status);
 				break;
 			
 			case EXIT:
@@ -751,6 +778,7 @@ public class GridMessage {
 					System.out.printf("	cluster='%s'\n", cluster);
 				else
 					System.out.printf("	cluster=\n");
+				System.out.printf("	status=%d\n", status);
 				break;
 			
 			case PING:
@@ -891,6 +919,24 @@ public class GridMessage {
 	 */
 	public void setClusters(Collection<String> value) {
 		clusters = new ArrayList<String>(value);
+	}
+
+	/**
+	 * Get the status field.
+	 * 
+	 * @return The status field
+	 */
+	public int getStatus() {
+		return status;
+	}
+
+	/**
+	 * Set the status field.
+	 * 
+	 * @param status The status field
+	 */
+	public void setStatus(int status) {
+		this.status = status;
 	}
 
 	/**
