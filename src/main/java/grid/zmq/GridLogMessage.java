@@ -47,7 +47,7 @@ import org.zeromq.ZMQ.Socket;
  * 
  * @author sriesenberg
  */
-public class GridLogMessage {
+public class GridLogMessage implements Cloneable {
 	public static final int GRID_LOG_MESSAGE_VERSION	= 1;
 	public static final int GRID_LOG_MESSAGE_LEVEL_ERROR	= 1;
 	public static final int GRID_LOG_MESSAGE_LEVEL_WARN	= 2;
@@ -89,6 +89,8 @@ public class GridLogMessage {
 		if (address != null)
 			address.destroy();
 		address = null;
+
+        //  Destroy frame fields
 	}
 	
 	//  --------------------------------------------------------------------------
@@ -302,7 +304,7 @@ public class GridLogMessage {
 		//  If we're sending to a ROUTER, we send the address first
 		if (socket.getType() == ZMQ.ROUTER) {
 			assert (address != null);
-			if (!address.sendAndDestroy(socket, ZMQ.SNDMORE)) {
+			if (!address.send(socket, ZMQ.SNDMORE)) {
 				destroy();
 				return false;
 			}
@@ -349,10 +351,9 @@ public class GridLogMessage {
 	 * 
 	 * @param self The instance of GridLogMessage to duplicate
 	 */
-	public GridLogMessage dup(GridLogMessage self) {
-		if (self == null)
-			return null;
-
+	@Override
+	public GridLogMessage clone() {
+		GridLogMessage self = this;
 		GridLogMessage copy = new GridLogMessage(self.id);
 		if (self.address != null)
 			copy.address = self.address.duplicate();

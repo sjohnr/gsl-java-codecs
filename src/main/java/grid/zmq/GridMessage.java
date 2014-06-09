@@ -66,7 +66,7 @@ import org.zeromq.ZMQ.Socket;
  * 
  * @author sriesenberg
  */
-public class GridMessage {
+public class GridMessage implements Cloneable {
 	public static final int GRID_MESSAGE_VERSION	= 1;
 	
 	public static final int CONNECT			= 1;
@@ -108,6 +108,11 @@ public class GridMessage {
 		if (address != null)
 			address.destroy();
 		address = null;
+
+        //  Destroy frame fields
+		if (content != null)
+			content.destroy();
+		content = null;
 	}
 	
 	//  --------------------------------------------------------------------------
@@ -491,7 +496,7 @@ public class GridMessage {
 		//  If we're sending to a ROUTER, we send the address first
 		if (socket.getType() == ZMQ.ROUTER) {
 			assert (address != null);
-			if (!address.sendAndDestroy(socket, ZMQ.SNDMORE)) {
+			if (!address.send(socket, ZMQ.SNDMORE)) {
 				destroy();
 				return false;
 			}
@@ -510,7 +515,7 @@ public class GridMessage {
 				//  If content isn't set, send an empty frame
 				if (content == null)
 					content = new ZFrame("".getBytes());
-				if (!content.sendAndDestroy(socket, 0)) {
+				if (!content.send(socket, 0)) {
 					frame.destroy();
 					destroy();
 					return false;
@@ -520,7 +525,7 @@ public class GridMessage {
 				//  If content isn't set, send an empty frame
 				if (content == null)
 					content = new ZFrame("".getBytes());
-				if (!content.sendAndDestroy(socket, 0)) {
+				if (!content.send(socket, 0)) {
 					frame.destroy();
 					destroy();
 					return false;
@@ -632,10 +637,9 @@ public class GridMessage {
 	 * 
 	 * @param self The instance of GridMessage to duplicate
 	 */
-	public GridMessage dup(GridMessage self) {
-		if (self == null)
-			return null;
-
+	@Override
+	public GridMessage clone() {
+		GridMessage self = this;
 		GridMessage copy = new GridMessage(self.id);
 		if (self.address != null)
 			copy.address = self.address.duplicate();

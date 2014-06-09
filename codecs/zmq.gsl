@@ -86,7 +86,7 @@ import org.zeromq.ZMQ.Socket;
  * 
  * @author $(switches.author)
  */
-public class $(ClassName) {
+public class $(ClassName) implements Cloneable {
 .for define
 	public static final int $(CLASS.NAME)_$(DEFINE.NAME:C)	= $(value);
 .endfor
@@ -138,6 +138,13 @@ public class $(ClassName) {
 		if (address != null)
 			address.destroy();
 		address = null;
+
+        //  Destroy frame fields
+.for field where type = "frame"
+		if ($(field.name) != null)
+			$(field.name).destroy();
+		$(field.name) = null;
+.endfor
 	}
 	
 	//  --------------------------------------------------------------------------
@@ -457,7 +464,7 @@ public class $(ClassName) {
 		//  If we're sending to a ROUTER, we send the address first
 		if (socket.getType() == ZMQ.ROUTER) {
 			assert (address != null);
-			if (!address.sendAndDestroy(socket, ZMQ.SNDMORE)) {
+			if (!address.send(socket, ZMQ.SNDMORE)) {
 				destroy();
 				return false;
 			}
@@ -479,9 +486,9 @@ public class $(ClassName) {
 				if ($(field.name) == null)
 					$(field.name) = new ZFrame("".getBytes());
 .        if last()
-				if (!$(field.name).sendAndDestroy(socket, 0)) {
+				if (!$(field.name).send(socket, 0)) {
 .        else
-				if (!$(field.name).sendAndDestroy(socket, ZMQ.SNDMORE)) {
+				if (!$(field.name).send(socket, ZMQ.SNDMORE)) {
 .        endif
 					frame.destroy();
 					destroy();
@@ -540,10 +547,9 @@ public class $(ClassName) {
 	 * 
 	 * @param self The instance of $(ClassName) to duplicate
 	 */
-	public $(ClassName) dup($(ClassName) self) {
-		if (self == null)
-			return null;
-
+	@Override
+	public $(ClassName) clone() {
+		$(ClassName) self = this;
 		$(ClassName) copy = new $(ClassName)(self.id);
 		if (self.address != null)
 			copy.address = self.address.duplicate();
