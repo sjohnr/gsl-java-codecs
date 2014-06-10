@@ -22,7 +22,7 @@
 		Send connection information to establish a connection with a new peer.
 	</message>
 
-	<message name="WHISPER" id="2">
+	<message name="MESSAGE" id="2">
 		<field name="content" type="frame" />
 		Send a message to a peer.
 	</message>
@@ -39,7 +39,7 @@
 		Request membership to a cluster.
 	</message>
 
-	<message name="EXIT" id="5">
+	<message name="LEAVE" id="5">
 		<field name="cluster" type="string" />
 		<field name="status" type="number" size="1" />
 		Relinquish membership from a cluster.

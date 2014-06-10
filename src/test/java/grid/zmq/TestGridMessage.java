@@ -58,7 +58,7 @@ public class TestGridMessage {
 		assertEquals(self.getHeaderNumber("Age", 0), 43);
 		self.destroy();
 
-		self = new GridMessage(GridMessage.WHISPER);
+		self = new GridMessage(GridMessage.MESSAGE);
 		self.setSequence((byte) 123);
 		self.setContent(new ZFrame("Captcha Diem"));
 		self.send(output);
@@ -95,7 +95,7 @@ public class TestGridMessage {
 		assertEquals(self.getStatus(), 123);
 		self.destroy();
 
-		self = new GridMessage(GridMessage.EXIT);
+		self = new GridMessage(GridMessage.LEAVE);
 		self.setSequence((byte) 123);
 		self.setCluster("Life is short but Now lasts for ever");
 		self.setStatus((byte) 123);

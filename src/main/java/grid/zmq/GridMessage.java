@@ -43,7 +43,7 @@ import org.zeromq.ZMQ.Socket;
  *	  clusters		strings
  *	  status		number 1
  *	  headers		dictionary
- *  WHISPER - Send a message to a peer.
+ *  MESSAGE - Send a message to a peer.
  *	  sequence		number 2
  *	  content		frame
  *  BROADCAST - Send out a state change for followers.
@@ -54,7 +54,7 @@ import org.zeromq.ZMQ.Socket;
  *	  sequence		number 2
  *	  cluster		string
  *	  status		number 1
- *  EXIT - Relinquish membership from a cluster.
+ *  LEAVE - Relinquish membership from a cluster.
  *	  sequence		number 2
  *	  cluster		string
  *	  status		number 1
@@ -70,10 +70,10 @@ public class GridMessage implements Cloneable {
 	public static final int GRID_MESSAGE_VERSION	= 1;
 	
 	public static final int CONNECT			= 1;
-	public static final int WHISPER			= 2;
+	public static final int MESSAGE			= 2;
 	public static final int BROADCAST			= 3;
 	public static final int JOIN			= 4;
-	public static final int EXIT			= 5;
+	public static final int LEAVE			= 5;
 	public static final int PING			= 6;
 	public static final int ECHO			= 7;
 	
@@ -263,7 +263,7 @@ public class GridMessage implements Cloneable {
 
 					break;
 
-				case WHISPER:
+				case MESSAGE:
 					self.sequence = self.getNumber2();
 					//  Get next frame, leave current untouched
 					if (!input.hasReceiveMore())
@@ -286,7 +286,7 @@ public class GridMessage implements Cloneable {
 					self.status = self.getNumber1();
 					break;
 
-				case EXIT:
+				case LEAVE:
 					self.sequence = self.getNumber2();
 					self.cluster = self.getString();
 					self.status = self.getNumber1();
@@ -366,7 +366,7 @@ public class GridMessage implements Cloneable {
 				}
 				break;
 				
-			case WHISPER:
+			case MESSAGE:
 				//  sequence is a 2-byte integer
 				frameSize += 2;
 				break;
@@ -391,7 +391,7 @@ public class GridMessage implements Cloneable {
 				frameSize += 1;
 				break;
 				
-			case EXIT:
+			case LEAVE:
 				//  sequence is a 2-byte integer
 				frameSize += 2;
 				//  cluster is a string with 1-byte length
@@ -451,7 +451,7 @@ public class GridMessage implements Cloneable {
 					putNumber1((byte) 0);	  //  Empty dictionary
 				break;
 			
-			case WHISPER:
+			case MESSAGE:
 				putNumber2(sequence);
 				frameFlags = ZMQ.SNDMORE;
 				break;
@@ -474,7 +474,7 @@ public class GridMessage implements Cloneable {
 				putNumber1(status);
 				break;
 			
-			case EXIT:
+			case LEAVE:
 				putNumber2(sequence);
 				if (cluster != null)
 					putString(cluster);
@@ -511,7 +511,7 @@ public class GridMessage implements Cloneable {
 
 		//  Now send any frame fields, in order
 		switch (id) {
-			case WHISPER:
+			case MESSAGE:
 				//  If content isn't set, send an empty frame
 				if (content == null)
 					content = new ZFrame("".getBytes());
@@ -559,12 +559,12 @@ public class GridMessage implements Cloneable {
 	}
 
 	/**
-	 * Send the WHISPER to the socket in one step.
+	 * Send the MESSAGE to the socket in one step.
 	 */
-	public static void sendWhisper(Socket output,
+	public static void sendMessage(Socket output,
 			int sequence,
 			ZFrame content) {
-		GridMessage self = new GridMessage(GridMessage.WHISPER);
+		GridMessage self = new GridMessage(GridMessage.MESSAGE);
 		self.setSequence(sequence);
 		self.setContent(content.duplicate());
 		self.send(output); 
@@ -599,13 +599,13 @@ public class GridMessage implements Cloneable {
 	}
 
 	/**
-	 * Send the EXIT to the socket in one step.
+	 * Send the LEAVE to the socket in one step.
 	 */
-	public static void sendExit(Socket output,
+	public static void sendLeave(Socket output,
 			int sequence,
 			String cluster,
 			int status) {
-		GridMessage self = new GridMessage(GridMessage.EXIT);
+		GridMessage self = new GridMessage(GridMessage.LEAVE);
 		self.setSequence(sequence);
 		self.setCluster(cluster);
 		self.setStatus(status);
@@ -652,7 +652,7 @@ public class GridMessage implements Cloneable {
 				copy.status = self.status;
 				copy.headers = new HashMap<String, String>(self.headers);
 				break;
-			case WHISPER:
+			case MESSAGE:
 				copy.sequence = self.sequence;
 				copy.content = self.content.duplicate();
 				break;
@@ -666,7 +666,7 @@ public class GridMessage implements Cloneable {
 				copy.cluster = self.cluster;
 				copy.status = self.status;
 				break;
-			case EXIT:
+			case LEAVE:
 				copy.sequence = self.sequence;
 				copy.cluster = self.cluster;
 				copy.status = self.status;
@@ -721,8 +721,8 @@ public class GridMessage implements Cloneable {
 				System.out.printf("	}\n");
 				break;
 			
-			case WHISPER:
-				System.out.println("WHISPER:");
+			case MESSAGE:
+				System.out.println("MESSAGE:");
 				System.out.printf("	sequence=%d\n", sequence);
 				System.out.printf("	content={\n");
 				if (content != null) {
@@ -775,8 +775,8 @@ public class GridMessage implements Cloneable {
 				System.out.printf("	status=%d\n", status);
 				break;
 			
-			case EXIT:
-				System.out.println("EXIT:");
+			case LEAVE:
+				System.out.println("LEAVE:");
 				System.out.printf("	sequence=%d\n", sequence);
 				if (cluster != null)
 					System.out.printf("	cluster='%s'\n", cluster);
