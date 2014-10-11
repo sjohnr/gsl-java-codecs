@@ -160,7 +160,7 @@ public class $(ClassName) implements Cloneable {
 	protected final int getNumber1() { 
 		int value = needle.get(); 
 		if (value < 0)
-			value =(0xff) & value;
+			value = (0xff) & value;
 		return value;
 	}
 
@@ -173,7 +173,7 @@ public class $(ClassName) implements Cloneable {
 	protected final int getNumber2() { 
 		int value = needle.getShort(); 
 		if (value < 0)
-			value =(0xffff) & value;
+			value = (0xffff) & value;
 		return value;
 	}
 
@@ -187,7 +187,7 @@ public class $(ClassName) implements Cloneable {
 	protected final long getNumber4()  { 
 		long value = needle.getInt(); 
 		if (value < 0)
-			value =(0xffffffff) & value;
+			value = (0xffffffff) & value;
 		return value;
 	}
 
@@ -276,6 +276,7 @@ public class $(ClassName) implements Cloneable {
 			switch (self.id) {
 .for class.message
 				case $(MESSAGE.NAME):
+				{
 .    for field
 .        if type = "number"
 					self.$(name) = self.getNumber$(size)();
@@ -319,6 +320,7 @@ public class $(ClassName) implements Cloneable {
 .        endif
 .    endfor
 					break;
+                }
 
 .endfor
 				default:
@@ -891,7 +893,7 @@ public class $(ClassName) implements Cloneable {
 .endfor
 }
 
-.echo "Generating src/main/java/$(switches.package)/Test$(ClassName).java..."
+.echo "Generating src/test/java/$(switches.package)/Test$(ClassName).java..."
 .directory.create("src/test/java/$(switches.package)")
 .output "src/test/java/$(switches.package)/Test$(ClassName).java"
 package $(PackageName);

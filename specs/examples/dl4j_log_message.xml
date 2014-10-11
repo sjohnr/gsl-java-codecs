@@ -1,0 +1,27 @@
+<class name="log_message" signature="1" title="Class representing the distlog4j message protocol.">
+	This message is part of the DL4J protocol, and represents a log message.
+
+	<include filename="license.xml" />
+
+	<!-- Protocol constants -->
+	<define name="VERSION" value="1" />
+
+	<!-- Headers for all messages -->
+	<header>
+		<field name="sequence" type="number" size="4" />
+	</header>
+
+	<!-- Protocol messages -->
+
+	<message name="LOG" id="1">
+		<field name="headers" type="dictionary" />
+		<field name="ip" type="string" />
+		<field name="port" type="number" size="2" />
+		<field name="file_name" type="string" />
+		<field name="line_num" type="number" size="4" />
+		<field name="message" type="string" />
+		Log message containing information about a log, including originating host, file, etc.
+	</message>
+
+</class>
+
