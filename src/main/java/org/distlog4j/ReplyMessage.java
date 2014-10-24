@@ -1,7 +1,7 @@
 /* ============================================================================
- * LogMessage.java
+ * ReplyMessage.java
  * 
- * Generated codec class for LogMessage
+ * Generated codec class for ReplyMessage
  * ----------------------------------------------------------------------------
  * This is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by   
@@ -25,18 +25,14 @@ import java.util.*;
 import org.zeromq.api.*;
 
 /**
- * LogMessage codec.
+ * ReplyMessage codec.
  */
-public class LogMessage {
-    public static final int MESSAGE_ID = 1;
+public class ReplyMessage {
+    public static final int MESSAGE_ID = 3;
 
     protected long sequence;
     protected Map<String, String> headers;
-    protected String ip;
-    protected int port;
-    protected String fileName;
-    protected long lineNum;
-    protected String message;
+    protected List<String> messages;
 
     /**
      * Get the sequence field.
@@ -171,95 +167,36 @@ public class LogMessage {
     }
 
     /**
-     * Get the ip field.
+     * Get the list of messages strings.
      * 
-     * @return The ip field
+     * @return The messages strings
      */
-    public String getIp() {
-        return ip;
+    public List<String> getMessages() {
+        return messages;
     }
 
     /**
-     * Set the ip field.
+     * Iterate through the messages field, and append a messages value.
      * 
-     * @param ip The ip field
+     * @param format The string format
+     * @param args The arguments used to build the string
      */
-    public void setIp(String format, Object... args) {
+    public void addMessage(String format, Object... args) {
         //  Format into newly allocated string
-        ip = String.format(format, args);
+        String string = String.format(format, args);
+
+        //  Attach string to list
+        if (messages == null)
+            messages = new ArrayList<String>();
+        messages.add(string);
     }
 
     /**
-     * Get the port field.
+     * Set the list of messages strings.
      * 
-     * @return The port field
+     * @param value The collection of strings
      */
-    public int getPort() {
-        return port;
-    }
-
-    /**
-     * Set the port field.
-     * 
-     * @param port The port field
-     */
-    public void setPort(int port) {
-        this.port = port;
-    }
-
-    /**
-     * Get the fileName field.
-     * 
-     * @return The fileName field
-     */
-    public String getFileName() {
-        return fileName;
-    }
-
-    /**
-     * Set the fileName field.
-     * 
-     * @param fileName The fileName field
-     */
-    public void setFileName(String format, Object... args) {
-        //  Format into newly allocated string
-        fileName = String.format(format, args);
-    }
-
-    /**
-     * Get the lineNum field.
-     * 
-     * @return The lineNum field
-     */
-    public long getLineNum() {
-        return lineNum;
-    }
-
-    /**
-     * Set the lineNum field.
-     * 
-     * @param lineNum The lineNum field
-     */
-    public void setLineNum(long lineNum) {
-        this.lineNum = lineNum;
-    }
-
-    /**
-     * Get the message field.
-     * 
-     * @return The message field
-     */
-    public String getMessage() {
-        return message;
-    }
-
-    /**
-     * Set the message field.
-     * 
-     * @param message The message field
-     */
-    public void setMessage(String format, Object... args) {
-        //  Format into newly allocated string
-        message = String.format(format, args);
+    public void setMessages(Collection<String> value) {
+        messages = new ArrayList<String>(value);
     }
 }

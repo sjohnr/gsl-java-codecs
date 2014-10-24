@@ -20,6 +20,13 @@
     return "$(string.replace(neatName, '_'))"
 .endfunction
 
+.function java_var_name(name)
+    neatName = "$(java_class_name(Name))"
+    first_char = string.substr(neatName, 0, 0)
+    
+    return "$(first_char)" + string.substr(neatName, 1, string.length(neatName))
+.endfunction
+
 .function java_package_name(package)
     return "$(string.replace(my.package, '/|.'))"
 .endfunction

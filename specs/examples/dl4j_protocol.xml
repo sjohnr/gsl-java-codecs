@@ -1,4 +1,4 @@
-<class name="log_message" signature="1" title="Class representing the distlog4j message protocol.">
+<class name="log" signature="1" title="Class representing the distlog4j message protocol.">
 	This message is part of the DL4J protocol, and represents a log message.
 
 	<include filename="license.xml" />
@@ -21,6 +21,19 @@
 		<field name="line_num" type="number" size="4" />
 		<field name="message" type="string" />
 		Log message containing information about a log, including originating host, file, etc.
+	</message>
+
+	<message name="REQUEST" id="2">
+		<field name="file_name" type="string" />
+		<field name="start" type="number" size="4" />
+		<field name="end" type="number" size="4" />
+		Request for a replay of messages between start and end line_num values.
+	</message>
+
+	<message name="REPLY" id="3">
+		<field name="headers" type="dictionary" />
+		<field name="messages" type="strings" />
+		Reply containing the requested sequence of replay log messages.
 	</message>
 
 </class>
