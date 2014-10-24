@@ -406,8 +406,8 @@ public class $(ClassName)Socket implements Closeable {
 .    endfor
 
         //  Now serialize message into the frame
-        Frame frame = new Frame(new byte[frameSize]);
-        needle = ByteBuffer.wrap(frame.getData()); 
+        byte[] frame = new byte[frameSize];
+        needle = ByteBuffer.wrap(frame); 
         MessageFlag frameFlag = MessageFlag.NONE;
         putNumber2(0xAAA0 | $(class.signature));
         putNumber1((byte) MessageType.$(MESSAGE.NAME).ordinal());
@@ -458,7 +458,7 @@ public class $(ClassName)Socket implements Closeable {
         }
 
         //  Now send the data frame
-        if (!socket.send(frame.getData(), frameFlag)) {
+        if (!socket.send(frame, frameFlag)) {
             return false;
         }
 
@@ -757,3 +757,89 @@ public class $(MessageName)Message {
 .endfor
 }
 .endfor
+
+.echo "Generating src/test/java/$(switches.package)/Test$(ClassName).java..."
+.directory.create("src/test/java/$(switches.package)")
+.output "src/test/java/$(switches.package)/$(ClassName)SocketTest.java"
+package $(PackageName);
+
+import static org.junit.Assert.*;
+
+import org.junit.*;
+import org.zeromq.api.*;
+import org.zeromq.jzmq.*;
+
+/**
+ * Test $(ClassName)Socket.
+ */
+public class $(ClassName)SocketTest {
+    private Context context;
+    private Socket dealer;
+    private Socket router;
+    
+    @Before
+    public void setUp() {
+        context = new ManagedContext();
+        dealer = context.buildSocket(SocketType.DEALER)
+            .bind("inproc://selftest");
+        router = context.buildSocket(SocketType.ROUTER)
+            .connect("inproc://selftest");
+    }
+.for class.message
+
+    @Test
+    public void test$(java_class_name(message.name))() {
+        $(ClassName)Socket out = new $(ClassName)Socket(dealer);
+        $(ClassName)Socket in = new $(ClassName)Socket(router);
+        
+        $(java_class_name(message.name))Message message = new $(java_class_name(message.name))Message();
+.    for field where !defined(value)
+.        if type = "number"
+        message.set$(java_class_name(name))((byte) 123);
+.        elsif type = "octets"
+        byte[] $(java_var_name(name))Data = new byte[$(ClassName)Socket.$(FIELD.NAME)_SIZE];
+        for (int i=0; i < $(ClassName)Socket.$(FIELD.NAME)_SIZE; i++)
+            $(java_var_name(name))Data[i] = 123;
+        message.set$(java_class_name(name))($(name)Data);
+.        elsif type = "string"
+        message.set$(java_class_name(name))("Life is short but Now lasts for ever");
+.        elsif type = "strings"
+        message.add$(stem_s(java_class_name(name)))("Name: %s", "Brutus");
+        message.add$(stem_s(java_class_name(name)))("Age: %d", Integer.valueOf(43));
+.        elsif type = "dictionary"
+        message.put$(stem_s(java_class_name(name)))("Name", "Brutus");
+        message.put$(stem_s(java_class_name(name)))("Age", "%d", Integer.valueOf(43));
+.        elsif type = "frame"
+        message.set$(java_class_name(name))(new Frame("Captcha Diem"));
+.        endif
+.    endfor
+        
+        assertTrue(out.send$(java_class_name(message.name))(message));
+        assertEquals($(ClassName)Socket.MessageType.$(MESSAGE.NAME), in.receive());
+        message = in.get$(java_class_name(message.name))();
+.    for field where !defined(value)
+.        if type = "number"
+        assertEquals(message.get$(java_class_name(name))(), 123);
+.        elsif type = "octets"
+        assertEquals(message.get$(java_class_name(name))()[0], 123);
+        assertEquals(message.$(name)()[$(ClassName)Socket.$(FIELD.NAME)_SIZE - 1], 123);
+.        elsif type = "string"
+        assertEquals(message.get$(java_class_name(name))(), "Life is short but Now lasts for ever");
+.        elsif type = "strings"
+        assertEquals(message.get$(java_class_name(name))().size(), 2);
+        assertEquals(message.get$(java_class_name(name))().get(0), "Name: Brutus");
+        assertEquals(message.get$(java_class_name(name))().get(1), "Age: 43");
+.        elsif type = "dictionary"
+        assertEquals(message.get$(java_class_name(name))().size(), 2);
+        assertEquals(message.get$(stem_s(java_class_name(name)))("Name", "?"), "Brutus");
+        assertEquals(message.get$(stem_s(java_class_name(name)))("Age", 0), 43);
+.        elsif type = "frame"
+        assertTrue(message.get$(java_class_name(name))().getString().equals("Captcha Diem"));
+.        endif
+.    endfor
+        
+        out.close();
+        in.close();
+    }
+.endfor
+}

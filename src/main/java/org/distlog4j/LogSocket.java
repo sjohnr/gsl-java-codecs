@@ -391,8 +391,8 @@ public class LogSocket implements Closeable {
             frameSize += message.message.length();
 
         //  Now serialize message into the frame
-        Frame frame = new Frame(new byte[frameSize]);
-        needle = ByteBuffer.wrap(frame.getData()); 
+        byte[] frame = new byte[frameSize];
+        needle = ByteBuffer.wrap(frame); 
         MessageFlag frameFlag = MessageFlag.NONE;
         putNumber2(0xAAA0 | 1);
         putNumber1((byte) MessageType.LOG.ordinal());
@@ -426,7 +426,7 @@ public class LogSocket implements Closeable {
         }
 
         //  Now send the data frame
-        if (!socket.send(frame.getData(), frameFlag)) {
+        if (!socket.send(frame, frameFlag)) {
             return false;
         }
 
@@ -453,8 +453,8 @@ public class LogSocket implements Closeable {
         frameSize += 4;
 
         //  Now serialize message into the frame
-        Frame frame = new Frame(new byte[frameSize]);
-        needle = ByteBuffer.wrap(frame.getData()); 
+        byte[] frame = new byte[frameSize];
+        needle = ByteBuffer.wrap(frame); 
         MessageFlag frameFlag = MessageFlag.NONE;
         putNumber2(0xAAA0 | 1);
         putNumber1((byte) MessageType.REQUEST.ordinal());
@@ -476,7 +476,7 @@ public class LogSocket implements Closeable {
         }
 
         //  Now send the data frame
-        if (!socket.send(frame.getData(), frameFlag)) {
+        if (!socket.send(frame, frameFlag)) {
             return false;
         }
 
@@ -504,8 +504,8 @@ public class LogSocket implements Closeable {
                 frameSize += 1 + value.length();
 
         //  Now serialize message into the frame
-        Frame frame = new Frame(new byte[frameSize]);
-        needle = ByteBuffer.wrap(frame.getData()); 
+        byte[] frame = new byte[frameSize];
+        needle = ByteBuffer.wrap(frame); 
         MessageFlag frameFlag = MessageFlag.NONE;
         putNumber2(0xAAA0 | 1);
         putNumber1((byte) MessageType.REPLY.ordinal());
@@ -533,7 +533,7 @@ public class LogSocket implements Closeable {
         }
 
         //  Now send the data frame
-        if (!socket.send(frame.getData(), frameFlag)) {
+        if (!socket.send(frame, frameFlag)) {
             return false;
         }
 
