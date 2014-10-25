@@ -29,7 +29,7 @@
         <field name="port" type="number" size="2" />
         <field name="file_name" type="string" />
         <field name="line_num" type="number" size="4" />
-        <field name="message" type="string" />
+        <field name="messages" type="strings" />
         Message containing information about a batch of logs, including originating host, file, etc.
     </message>
 

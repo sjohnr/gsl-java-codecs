@@ -36,7 +36,7 @@ public class LogsMessage {
     protected int port;
     protected String fileName;
     protected long lineNum;
-    protected String message;
+    protected List<String> messages;
 
     /**
      * Get the sequence field.
@@ -245,21 +245,36 @@ public class LogsMessage {
     }
 
     /**
-     * Get the message field.
+     * Get the list of messages strings.
      * 
-     * @return The message field
+     * @return The messages strings
      */
-    public String getMessage() {
-        return message;
+    public List<String> getMessages() {
+        return messages;
     }
 
     /**
-     * Set the message field.
+     * Iterate through the messages field, and append a messages value.
      * 
-     * @param message The message field
+     * @param format The string format
+     * @param args The arguments used to build the string
      */
-    public void setMessage(String format, Object... args) {
+    public void addMessage(String format, Object... args) {
         //  Format into newly allocated string
-        message = String.format(format, args);
+        String string = String.format(format, args);
+
+        //  Attach string to list
+        if (messages == null)
+            messages = new ArrayList<String>();
+        messages.add(string);
+    }
+
+    /**
+     * Set the list of messages strings.
+     * 
+     * @param value The collection of strings
+     */
+    public void setMessages(Collection<String> value) {
+        messages = new ArrayList<String>(value);
     }
 }

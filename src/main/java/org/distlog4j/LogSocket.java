@@ -48,7 +48,7 @@ import org.zeromq.ZMQ;
  *    port                         number 2
  *    fileName                     string
  *    lineNum                      number 4
- *    message                      string
+ *    messages                     strings
  *  REQUEST - Request for a replay of messages between start and end line_num values.
  *    sequence                     number 4
  *    fileName                     string
@@ -298,7 +298,12 @@ public class LogSocket implements Closeable {
                     message.port = getNumber2();
                     message.fileName = getString();
                     message.lineNum = getNumber4();
-                    message.message = getString();
+                    int messagesListSize = getNumber1();
+                    message.messages = new ArrayList<String>();
+                    while (messagesListSize-- > 0) {
+                        String string = getString();
+                        message.messages.add(string);
+                    }
                     break;
                 }
 
@@ -505,10 +510,11 @@ public class LogSocket implements Closeable {
             frameSize += message.fileName.length();
         //  lineNum is a 4-byte integer
         frameSize += 4;
-        //  message is a string with 1-byte length
+        //  messages is an array of strings
         frameSize++;        //  Size is one octet
-        if (message.message != null)
-            frameSize += message.message.length();
+        if (message.messages != null)
+            for (String value : message.messages) 
+                frameSize += 1 + value.length();
 
         //  Now serialize message into the frame
         byte[] frame = new byte[frameSize];
@@ -532,10 +538,14 @@ public class LogSocket implements Closeable {
         else
             putNumber1((byte) 0);     //  Empty string
         putNumber4(message.lineNum);
-        if (message.message != null)
-            putString(message.message);
+        if (message.messages != null) {
+            putNumber1((byte) message.messages.size());
+            for (String value : message.messages) {
+                putString(value);
+            }
+        }
         else
-            putNumber1((byte) 0);     //  Empty string
+            putNumber1((byte) 0);     //  Empty string array
 
         //  If we're sending to a ROUTER, we send the address first
         if (socket.getZMQSocket().getType() == ZMQ.ROUTER) {

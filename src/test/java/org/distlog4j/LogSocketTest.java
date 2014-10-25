@@ -68,7 +68,8 @@ public class LogSocketTest {
         message.setPort((byte) 123);
         message.setFileName("Life is short but Now lasts for ever");
         message.setLineNum((byte) 123);
-        message.setMessage("Life is short but Now lasts for ever");
+        message.addMessage("Name: %s", "Brutus");
+        message.addMessage("Age: %d", Integer.valueOf(43));
         
         assertTrue(out.sendLogs(message));
         assertEquals(LogSocket.MessageType.LOGS, in.receive());
@@ -81,7 +82,9 @@ public class LogSocketTest {
         assertEquals(message.getPort(), 123);
         assertEquals(message.getFileName(), "Life is short but Now lasts for ever");
         assertEquals(message.getLineNum(), 123);
-        assertEquals(message.getMessage(), "Life is short but Now lasts for ever");
+        assertEquals(message.getMessages().size(), 2);
+        assertEquals(message.getMessages().get(0), "Name: Brutus");
+        assertEquals(message.getMessages().get(1), "Age: 43");
         
         out.close();
         in.close();
