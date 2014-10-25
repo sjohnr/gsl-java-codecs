@@ -289,7 +289,7 @@ public class $(ClassName)Socket implements Closeable {
 
             switch (id) {
 .for class.message
-                case $(id-1):
+                case $(id):
                 {
                     $(java_class_name(message.name))Message message = new $(java_class_name(message.name))Message();
                     this.$(java_var_name(message.name)) = message;
@@ -343,7 +343,7 @@ public class $(ClassName)Socket implements Closeable {
                     throw new IllegalArgumentException();
             }
 
-            return MessageType.values()[id];
+            return MessageType.values()[id-1];
         } catch (Exception e) {
             //  Error returns
             System.out.printf("E: malformed message '%d'\\n", Integer.valueOf(id));
@@ -410,7 +410,7 @@ public class $(ClassName)Socket implements Closeable {
         needle = ByteBuffer.wrap(frame); 
         MessageFlag frameFlag = MessageFlag.NONE;
         putNumber2(0xAAA0 | $(class.signature));
-        putNumber1((byte) MessageType.$(MESSAGE.NAME).ordinal());
+        putNumber1((byte) $(id));     //  Message ID
 
 .    for field
 .        if type = "number"
@@ -504,7 +504,7 @@ import org.zeromq.api.*;
  * $(MessageName)Message codec.
  */
 public class $(MessageName)Message {
-    public static final int MESSAGE_ID = $(id);
+    public static final $(ClassName)Socket.MessageType MESSAGE_TYPE = $(ClassName)Socket.MessageType.$(MESSAGE.NAME);
 
 .for field where !defined(value)
 .    if type = "number"

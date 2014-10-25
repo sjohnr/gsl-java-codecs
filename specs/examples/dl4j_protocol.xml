@@ -23,14 +23,24 @@
 		Log message containing information about a log, including originating host, file, etc.
 	</message>
 
-	<message name="REQUEST" id="2">
+    <message name="LOGS" id="2">
+        <field name="headers" type="dictionary" />
+        <field name="ip" type="string" />
+        <field name="port" type="number" size="2" />
+        <field name="file_name" type="string" />
+        <field name="line_num" type="number" size="4" />
+        <field name="message" type="string" />
+        Message containing information about a batch of logs, including originating host, file, etc.
+    </message>
+
+	<message name="REQUEST" id="3">
 		<field name="file_name" type="string" />
 		<field name="start" type="number" size="4" />
 		<field name="end" type="number" size="4" />
 		Request for a replay of messages between start and end line_num values.
 	</message>
 
-	<message name="REPLY" id="3">
+	<message name="REPLY" id="4">
 		<field name="headers" type="dictionary" />
 		<field name="messages" type="strings" />
 		Reply containing the requested sequence of replay log messages.

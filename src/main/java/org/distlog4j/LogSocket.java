@@ -41,6 +41,14 @@ import org.zeromq.ZMQ;
  *    fileName                     string
  *    lineNum                      number 4
  *    message                      string
+ *  LOGS - Message containing information about a batch of logs, including originating host, file, etc.
+ *    sequence                     number 4
+ *    headers                      dictionary
+ *    ip                           string
+ *    port                         number 2
+ *    fileName                     string
+ *    lineNum                      number 4
+ *    message                      string
  *  REQUEST - Request for a replay of messages between start and end line_num values.
  *    sequence                     number 4
  *    fileName                     string
@@ -61,6 +69,7 @@ public class LogSocket implements Closeable {
     //  Enumeration of message types
     public static enum MessageType {
         LOG,
+        LOGS,
         REQUEST,
         REPLY
     }
@@ -71,6 +80,7 @@ public class LogSocket implements Closeable {
     private ByteBuffer needle; //  Read/write pointer for serialization
 
     private LogMessage log;
+    private LogsMessage logs;
     private RequestMessage request;
     private ReplyMessage reply;
 
@@ -250,7 +260,7 @@ public class LogSocket implements Closeable {
             id = getNumber1();
 
             switch (id) {
-                case 0:
+                case 1:
                 {
                     LogMessage message = new LogMessage();
                     this.log = message;
@@ -271,7 +281,28 @@ public class LogSocket implements Closeable {
                     break;
                 }
 
-                case 1:
+                case 2:
+                {
+                    LogsMessage message = new LogsMessage();
+                    this.logs = message;
+                    message.sequence = getNumber4();
+                    int headersHashSize = getNumber1();
+                    message.headers = new HashMap<String, String>();
+                    while (headersHashSize-- > 0) {
+                        String string = getString();
+                        String[] kv = string.split("=");
+                        message.headers.put(kv[0], kv[1]);
+                    }
+
+                    message.ip = getString();
+                    message.port = getNumber2();
+                    message.fileName = getString();
+                    message.lineNum = getNumber4();
+                    message.message = getString();
+                    break;
+                }
+
+                case 3:
                 {
                     RequestMessage message = new RequestMessage();
                     this.request = message;
@@ -282,7 +313,7 @@ public class LogSocket implements Closeable {
                     break;
                 }
 
-                case 2:
+                case 4:
                 {
                     ReplyMessage message = new ReplyMessage();
                     this.reply = message;
@@ -308,7 +339,7 @@ public class LogSocket implements Closeable {
                     throw new IllegalArgumentException();
             }
 
-            return MessageType.values()[id];
+            return MessageType.values()[id-1];
         } catch (Exception e) {
             //  Error returns
             System.out.printf("E: malformed message '%d'\n", Integer.valueOf(id));
@@ -328,6 +359,21 @@ public class LogSocket implements Closeable {
             return log;
         } finally {
             log = null;
+        }
+    }
+
+    /**
+     * Get a LOGS message from the socket.
+     */
+    public LogsMessage getLogs() {
+        if (logs == null) {
+            throw new IllegalStateException("E: message not available");
+        }
+
+        try {
+            return logs;
+        } finally {
+            logs = null;
         }
     }
 
@@ -395,7 +441,81 @@ public class LogSocket implements Closeable {
         needle = ByteBuffer.wrap(frame); 
         MessageFlag frameFlag = MessageFlag.NONE;
         putNumber2(0xAAA0 | 1);
-        putNumber1((byte) MessageType.LOG.ordinal());
+        putNumber1((byte) 1);         //  Message ID
+
+        putNumber4(message.sequence);
+        if (message.headers != null)
+            writeDictionary(message.headers);
+        else
+            putNumber1((byte) 0);     //  Empty dictionary
+        if (message.ip != null)
+            putString(message.ip);
+        else
+            putNumber1((byte) 0);     //  Empty string
+        putNumber2(message.port);
+        if (message.fileName != null)
+            putString(message.fileName);
+        else
+            putNumber1((byte) 0);     //  Empty string
+        putNumber4(message.lineNum);
+        if (message.message != null)
+            putString(message.message);
+        else
+            putNumber1((byte) 0);     //  Empty string
+
+        //  If we're sending to a ROUTER, we send the address first
+        if (socket.getZMQSocket().getType() == ZMQ.ROUTER) {
+            assert (address != null);
+            if (!socket.send(address.getData(), MessageFlag.SEND_MORE)) {
+                return false;
+            }
+        }
+
+        //  Now send the data frame
+        if (!socket.send(frame, frameFlag)) {
+            return false;
+        }
+
+        //  Now send any frame fields, in order
+
+        return true;
+    }
+
+    /**
+     * Send the LOGS to the socket in one step.
+     */
+    public boolean sendLogs(LogsMessage message) {
+        //  Calculate size of serialized data
+        int frameSize = 2 + 1;        //  Signature and message ID
+        //  sequence is a 4-byte integer
+        frameSize += 4;
+        //  headers is an array of key=value strings
+        frameSize++;        //  Size is one octet
+        if (message.headers != null)
+            frameSize += countDictionary(message.headers);
+        //  ip is a string with 1-byte length
+        frameSize++;        //  Size is one octet
+        if (message.ip != null)
+            frameSize += message.ip.length();
+        //  port is a 2-byte integer
+        frameSize += 2;
+        //  fileName is a string with 1-byte length
+        frameSize++;        //  Size is one octet
+        if (message.fileName != null)
+            frameSize += message.fileName.length();
+        //  lineNum is a 4-byte integer
+        frameSize += 4;
+        //  message is a string with 1-byte length
+        frameSize++;        //  Size is one octet
+        if (message.message != null)
+            frameSize += message.message.length();
+
+        //  Now serialize message into the frame
+        byte[] frame = new byte[frameSize];
+        needle = ByteBuffer.wrap(frame); 
+        MessageFlag frameFlag = MessageFlag.NONE;
+        putNumber2(0xAAA0 | 1);
+        putNumber1((byte) 2);         //  Message ID
 
         putNumber4(message.sequence);
         if (message.headers != null)
@@ -457,7 +577,7 @@ public class LogSocket implements Closeable {
         needle = ByteBuffer.wrap(frame); 
         MessageFlag frameFlag = MessageFlag.NONE;
         putNumber2(0xAAA0 | 1);
-        putNumber1((byte) MessageType.REQUEST.ordinal());
+        putNumber1((byte) 3);         //  Message ID
 
         putNumber4(message.sequence);
         if (message.fileName != null)
@@ -508,7 +628,7 @@ public class LogSocket implements Closeable {
         needle = ByteBuffer.wrap(frame); 
         MessageFlag frameFlag = MessageFlag.NONE;
         putNumber2(0xAAA0 | 1);
-        putNumber1((byte) MessageType.REPLY.ordinal());
+        putNumber1((byte) 4);         //  Message ID
 
         putNumber4(message.sequence);
         if (message.headers != null)

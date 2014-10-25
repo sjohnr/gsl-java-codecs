@@ -28,7 +28,7 @@ import org.zeromq.api.*;
  * LogMessage codec.
  */
 public class LogMessage {
-    public static final int MESSAGE_ID = 1;
+    public static final LogSocket.MessageType MESSAGE_TYPE = LogSocket.MessageType.LOG;
 
     protected long sequence;
     protected Map<String, String> headers;

@@ -28,7 +28,7 @@ import org.zeromq.api.*;
  * RequestMessage codec.
  */
 public class RequestMessage {
-    public static final int MESSAGE_ID = 2;
+    public static final LogSocket.MessageType MESSAGE_TYPE = LogSocket.MessageType.REQUEST;
 
     protected long sequence;
     protected String fileName;
