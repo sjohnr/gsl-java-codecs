@@ -415,7 +415,7 @@ public class LogSocket implements Closeable {
     /**
      * Send the LOG to the socket in one step.
      */
-    public boolean sendLog(LogMessage message) {
+    public boolean send(LogMessage message) {
         //  Calculate size of serialized data
         int frameSize = 2 + 1;        //  Signature and message ID
         //  sequence is a 4-byte integer
@@ -489,7 +489,7 @@ public class LogSocket implements Closeable {
     /**
      * Send the LOGS to the socket in one step.
      */
-    public boolean sendLogs(LogsMessage message) {
+    public boolean send(LogsMessage message) {
         //  Calculate size of serialized data
         int frameSize = 2 + 1;        //  Signature and message ID
         //  sequence is a 4-byte integer
@@ -568,7 +568,7 @@ public class LogSocket implements Closeable {
     /**
      * Send the REQUEST to the socket in one step.
      */
-    public boolean sendRequest(RequestMessage message) {
+    public boolean send(RequestMessage message) {
         //  Calculate size of serialized data
         int frameSize = 2 + 1;        //  Signature and message ID
         //  sequence is a 4-byte integer
@@ -618,7 +618,7 @@ public class LogSocket implements Closeable {
     /**
      * Send the REPLY to the socket in one step.
      */
-    public boolean sendReply(ReplyMessage message) {
+    public boolean send(ReplyMessage message) {
         //  Calculate size of serialized data
         int frameSize = 2 + 1;        //  Signature and message ID
         //  sequence is a 4-byte integer

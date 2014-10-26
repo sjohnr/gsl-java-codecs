@@ -38,7 +38,7 @@ public class LogSocketTest {
         message.setLineNum((byte) 123);
         message.setMessage("Life is short but Now lasts for ever");
         
-        assertTrue(out.sendLog(message));
+        assertTrue(out.send(message));
         assertEquals(LogSocket.MessageType.LOG, in.receive());
         message = in.getLog();
         assertEquals(message.getSequence(), 123);
@@ -71,7 +71,7 @@ public class LogSocketTest {
         message.addMessage("Name: %s", "Brutus");
         message.addMessage("Age: %d", Integer.valueOf(43));
         
-        assertTrue(out.sendLogs(message));
+        assertTrue(out.send(message));
         assertEquals(LogSocket.MessageType.LOGS, in.receive());
         message = in.getLogs();
         assertEquals(message.getSequence(), 123);
@@ -101,7 +101,7 @@ public class LogSocketTest {
         message.setStart((byte) 123);
         message.setEnd((byte) 123);
         
-        assertTrue(out.sendRequest(message));
+        assertTrue(out.send(message));
         assertEquals(LogSocket.MessageType.REQUEST, in.receive());
         message = in.getRequest();
         assertEquals(message.getSequence(), 123);
@@ -125,7 +125,7 @@ public class LogSocketTest {
         message.addMessage("Name: %s", "Brutus");
         message.addMessage("Age: %d", Integer.valueOf(43));
         
-        assertTrue(out.sendReply(message));
+        assertTrue(out.send(message));
         assertEquals(LogSocket.MessageType.REPLY, in.receive());
         message = in.getReply();
         assertEquals(message.getSequence(), 123);

@@ -372,7 +372,7 @@ public class $(ClassName)Socket implements Closeable {
     /**
      * Send the $(message.NAME) to the socket in one step.
      */
-    public boolean send$(java_class_name(name))($(java_class_name(name))Message message) {
+    public boolean send($(java_class_name(name))Message message) {
         //  Calculate size of serialized data
         int frameSize = 2 + 1;        //  Signature and message ID
 .    for field
@@ -814,7 +814,7 @@ public class $(ClassName)SocketTest {
 .        endif
 .    endfor
         
-        assertTrue(out.send$(java_class_name(message.name))(message));
+        assertTrue(out.send(message));
         assertEquals($(ClassName)Socket.MessageType.$(MESSAGE.NAME), in.receive());
         message = in.get$(java_class_name(message.name))();
 .    for field where !defined(value)
