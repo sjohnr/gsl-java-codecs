@@ -1,7 +1,7 @@
 /* ============================================================================
- * RequestMessage.java
+ * JoinMessage.java
  * 
- * Generated codec class for RequestMessage
+ * Generated codec class for JoinMessage
  * ----------------------------------------------------------------------------
  * This is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by   
@@ -18,7 +18,7 @@
  * http://www.gnu.org/licenses.                                         
  * ============================================================================
  */
-package org.distlog4j;
+package org.zyre;
 
 import java.util.*;
 
@@ -26,15 +26,14 @@ import org.zeromq.api.*;
 import org.zeromq.api.Message.Frame;
 
 /**
- * RequestMessage class.
+ * JoinMessage class.
  */
-public class RequestMessage {
-    public static final LogSocket.MessageType MESSAGE_TYPE = LogSocket.MessageType.REQUEST;
+public class JoinMessage {
+    public static final ZreSocket.MessageType MESSAGE_TYPE = ZreSocket.MessageType.JOIN;
 
     protected Integer sequence;
-    protected String fileName;
-    protected Integer start;
-    protected Integer end;
+    protected String group;
+    protected Integer status;
 
     /**
      * Get the sequence field.
@@ -55,56 +54,38 @@ public class RequestMessage {
     }
 
     /**
-     * Get the fileName field.
+     * Get the group field.
      * 
-     * @return The fileName field
+     * @return The group field
      */
-    public String getFileName() {
-        return fileName;
+    public String getGroup() {
+        return group;
     }
 
     /**
-     * Set the fileName field.
+     * Set the group field.
      * 
-     * @param fileName The fileName field
+     * @param group The group field
      */
-    public void setFileName(String fileName) {
-        this.fileName = fileName;
+    public void setGroup(String group) {
+        this.group = group;
     }
 
     /**
-     * Get the start field.
+     * Get the status field.
      * 
-     * @return The start field
+     * @return The status field
      */
-    public Integer getStart() {
-        return start;
+    public Integer getStatus() {
+        return status;
     }
 
     /**
-     * Set the start field.
+     * Set the status field.
      * 
-     * @param start The start field
+     * @param status The status field
      */
-    public void setStart(Integer start) {
-        this.start = start;
-    }
-
-    /**
-     * Get the end field.
-     * 
-     * @return The end field
-     */
-    public Integer getEnd() {
-        return end;
-    }
-
-    /**
-     * Set the end field.
-     * 
-     * @param end The end field
-     */
-    public void setEnd(Integer end) {
-        this.end = end;
+    public void setStatus(Integer status) {
+        this.status = status;
     }
 }

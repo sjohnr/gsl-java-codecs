@@ -1,4 +1,4 @@
-<class name="grid_message" signature="1" title="Class encapsulating communication between GridMasters and GridFollowers">
+<class name="grid" signature="1" title="Class encapsulating communication between GridMasters and GridFollowers">
 	This is the GRID protocol.
 
 	<include filename="license.xml" />

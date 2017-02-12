@@ -26,10 +26,11 @@ import java.nio.ByteBuffer;
 
 import org.zeromq.api.*;
 import org.zeromq.api.Message.Frame;
+import org.zeromq.api.Message.FrameBuilder;
 import org.zeromq.ZMQ;
 
 /**
- * LogSocket codec.
+ * LogSocket class.
  * 
  * The specification for this class is as follows:
  * <pre class="text">
@@ -64,10 +65,10 @@ import org.zeromq.ZMQ;
  */
 public class LogSocket implements Closeable {
     //  Protocol constants
-    public static final int LOG_VERSION                     = 1;
+    public static final int VERSION           = 1;
 
     //  Enumeration of message types
-    public static enum MessageType {
+    public enum MessageType {
         LOG,
         LOGS,
         REQUEST,
@@ -75,9 +76,8 @@ public class LogSocket implements Closeable {
     }
 
     //  Structure of our class
-    private Socket socket;     //  Internal socket handle
-    private Frame address;     //  Address of peer if any
-    private ByteBuffer needle; //  Read/write pointer for serialization
+    private Socket socket;        //  Internal socket handle
+    private Frame address;        //  Address of peer if any
 
     private LogMessage log;
     private LogsMessage logs;
@@ -90,6 +90,7 @@ public class LogSocket implements Closeable {
      * @param socket The internal socket
      */
     public LogSocket(Socket socket) {
+        assert (socket != null);
         this.socket = socket;
     }
 
@@ -99,106 +100,6 @@ public class LogSocket implements Closeable {
     @Override
     public void close() {
         socket.close();
-    }
-
-    //  --------------------------------------------------------------------------
-    //  Network data encoding macros
-
-    //  Put a 1-byte number to the frame
-    protected final void putNumber1(int value) {
-        needle.put((byte) value);
-    }
-
-    //  Get a 1-byte number from the frame
-    //  then make it unsigned
-    protected final int getNumber1() { 
-        int value = needle.get(); 
-        if (value < 0)
-            value = (0xff) & value;
-        return value;
-    }
-
-    //  Put a 2-byte number to the frame
-    protected final void putNumber2(int value) {
-        needle.putShort((short) value);
-    }
-
-    //  Get a 2-byte number from the frame
-    protected final int getNumber2() { 
-        int value = needle.getShort(); 
-        if (value < 0)
-            value = (0xffff) & value;
-        return value;
-    }
-
-    //  Put a 4-byte number to the frame
-    protected final void putNumber4(long value)  {
-        needle.putInt((int) value);
-    }
-
-    //  Get a 4-byte number from the frame
-    //  then make it unsigned
-    protected final long getNumber4()  { 
-        long value = needle.getInt(); 
-        if (value < 0)
-            value = (0xffffffff) & value;
-        return value;
-    }
-
-    //  Put a 8-byte number to the frame
-    protected final void putNumber8(long value)  {
-        needle.putLong(value);
-    }
-
-    //  Get a 8-byte number from the frame
-    protected final long getNumber8()  {
-        return needle.getLong();
-    }
-
-    //  Put a block to the frame
-    protected final void putBlock(byte[] value, int size)  {
-        needle.put(value, 0, size);
-    }
-
-    //  Get a block from the frame
-    protected final byte[] getBlock(int size)  {
-        byte[] value = new byte[size]; 
-        needle.get(value);
-
-        return value;
-    }
-
-    //  Put a string to the frame
-    protected final void putString(String value)  {
-        needle.put((byte) value.length());
-        needle.put(value.getBytes());
-    }
-
-    //  Get a string from the frame
-    protected final String getString()  {
-        int size = getNumber1();
-        byte[] value = new byte[size];
-        needle.get(value);
-
-        return new String(value);
-    }
-
-    //  Put a dictionary to the frame
-    protected final void writeDictionary(Map<String, String> dictionary) {
-        putNumber1((byte) dictionary.size());
-        for (Map.Entry<String, String> entry: dictionary.entrySet()) {
-            putString(entry.getKey() + "=" + entry.getValue());
-        }
-    }
-
-    //  Calculate the size of the dictionary in bytes
-    protected final int countDictionary(Map<String, String> dictionary) {
-        int nBytes = 0;
-        for (Map.Entry<String, String> entry: dictionary.entrySet()) {
-            nBytes += entry.getKey().length() + 1 + entry.getValue().length() + 1;
-        }
-        
-        return nBytes;
     }
 
     /**
@@ -223,131 +124,108 @@ public class LogSocket implements Closeable {
      * Receive a message on the socket.
      */
     public MessageType receive() {
-        assert (socket != null);
-
         int id = 0;
-        byte[] frame = null;
+        Message frames;
+        Frame needle;
+        MessageType type;
         try {
             //  Read valid message frame from socket; we loop over any
             //  garbage data we might receive from badly-connected peers
             while (true) {
+                frames = socket.receiveMessage();
+
                 //  If we're reading from a ROUTER socket, get address
                 if (socket.getZMQSocket().getType() == ZMQ.ROUTER) {
-                    this.address = new Frame(socket.receive());
-                    if (this.address == null)
-                        return null;         //  Interrupted
-                    if (!socket.hasMoreToReceive())
-                        throw new IllegalArgumentException();
+                    this.address = frames.popFrame();
                 }
+
                 //  Read and parse command in frame
-                frame = socket.receive();
-                if (frame == null)
-                    return null;             //  Interrupted
+                needle = frames.popFrame();
 
                 //  Get and check protocol signature
-                this.needle = ByteBuffer.wrap(frame); 
-                int signature = getNumber2();
-                if (signature ==(0xAAA0 | 1))
+                int signature = (0xffff) & needle.getShort();
+                if (signature == (0xAAA0 | 1))
                     break;                //  Valid signature
 
                 //  Protocol assertion, drop message
-                while (socket.hasMoreToReceive()) {
-                    socket.receive();
-                }
             }
 
             //  Get message id, which is first byte in frame
-            id = getNumber1();
-
-            switch (id) {
-                case 1:
-                {
-                    LogMessage message = new LogMessage();
-                    this.log = message;
-                    message.sequence = getNumber4();
-                    int headersHashSize = getNumber1();
-                    message.headers = new HashMap<String, String>();
+            id = (0xff) & needle.getByte();
+            type = MessageType.values()[id-1];
+            switch (type) {
+                case LOG: {
+                    LogMessage message = this.log = new LogMessage();
+                    message.sequence = needle.getInt();
+                    int headersHashSize = (0xff) & needle.getByte();
+                    message.headers = new HashMap<>(headersHashSize);
                     while (headersHashSize-- > 0) {
-                        String string = getString();
+                        String string = needle.getChars();
                         String[] kv = string.split("=");
                         message.headers.put(kv[0], kv[1]);
                     }
-
-                    message.ip = getString();
-                    message.port = getNumber2();
-                    message.fileName = getString();
-                    message.lineNum = getNumber4();
-                    message.message = getString();
+                    message.ip = needle.getChars();
+                    message.port = (0xffff) & needle.getShort();
+                    message.fileName = needle.getChars();
+                    message.lineNum = needle.getInt();
+                    message.message = needle.getChars();
                     break;
                 }
-
-                case 2:
-                {
-                    LogsMessage message = new LogsMessage();
-                    this.logs = message;
-                    message.sequence = getNumber4();
-                    int headersHashSize = getNumber1();
-                    message.headers = new HashMap<String, String>();
+                case LOGS: {
+                    LogsMessage message = this.logs = new LogsMessage();
+                    message.sequence = needle.getInt();
+                    int headersHashSize = (0xff) & needle.getByte();
+                    message.headers = new HashMap<>(headersHashSize);
                     while (headersHashSize-- > 0) {
-                        String string = getString();
+                        String string = needle.getChars();
                         String[] kv = string.split("=");
                         message.headers.put(kv[0], kv[1]);
                     }
-
-                    message.ip = getString();
-                    message.port = getNumber2();
-                    message.fileName = getString();
-                    message.lineNum = getNumber4();
-                    int messagesListSize = getNumber1();
-                    message.messages = new ArrayList<String>();
+                    message.ip = needle.getChars();
+                    message.port = (0xffff) & needle.getShort();
+                    message.fileName = needle.getChars();
+                    message.lineNum = needle.getInt();
+                    int messagesListSize = (0xff) & needle.getByte();
+                    message.messages = new ArrayList<>(messagesListSize);
                     while (messagesListSize-- > 0) {
-                        String string = getString();
-                        message.messages.add(string);
+                        message.messages.add(needle.getChars());
                     }
                     break;
                 }
-
-                case 3:
-                {
-                    RequestMessage message = new RequestMessage();
-                    this.request = message;
-                    message.sequence = getNumber4();
-                    message.fileName = getString();
-                    message.start = getNumber4();
-                    message.end = getNumber4();
+                case REQUEST: {
+                    RequestMessage message = this.request = new RequestMessage();
+                    message.sequence = needle.getInt();
+                    message.fileName = needle.getChars();
+                    message.start = needle.getInt();
+                    message.end = needle.getInt();
                     break;
                 }
-
-                case 4:
-                {
-                    ReplyMessage message = new ReplyMessage();
-                    this.reply = message;
-                    message.sequence = getNumber4();
-                    int headersHashSize = getNumber1();
-                    message.headers = new HashMap<String, String>();
+                case REPLY: {
+                    ReplyMessage message = this.reply = new ReplyMessage();
+                    message.sequence = needle.getInt();
+                    int headersHashSize = (0xff) & needle.getByte();
+                    message.headers = new HashMap<>(headersHashSize);
                     while (headersHashSize-- > 0) {
-                        String string = getString();
+                        String string = needle.getChars();
                         String[] kv = string.split("=");
                         message.headers.put(kv[0], kv[1]);
                     }
-
-                    int messagesListSize = getNumber1();
-                    message.messages = new ArrayList<String>();
+                    int messagesListSize = (0xff) & needle.getByte();
+                    message.messages = new ArrayList<>(messagesListSize);
                     while (messagesListSize-- > 0) {
-                        String string = getString();
-                        message.messages.add(string);
+                        message.messages.add(needle.getChars());
                     }
                     break;
                 }
-
                 default:
-                    throw new IllegalArgumentException();
+                    throw new IllegalArgumentException("Invalid message: unrecognized type: " + type);
             }
 
-            return MessageType.values()[id-1];
-        } catch (Exception e) {
+            return type;
+        } catch (Exception ex) {
             //  Error returns
-            System.out.printf("E: malformed message '%d'\n", Integer.valueOf(id));
+            System.out.println("Malformed message: " + id);
+            ex.printStackTrace();
             return null;
         }
     }
@@ -356,320 +234,208 @@ public class LogSocket implements Closeable {
      * Get a LOG message from the socket.
      */
     public LogMessage getLog() {
-        if (log == null) {
-            throw new IllegalStateException("E: message not available");
-        }
-
-        try {
-            return log;
-        } finally {
-            log = null;
-        }
+        return log;
     }
 
     /**
      * Get a LOGS message from the socket.
      */
     public LogsMessage getLogs() {
-        if (logs == null) {
-            throw new IllegalStateException("E: message not available");
-        }
-
-        try {
-            return logs;
-        } finally {
-            logs = null;
-        }
+        return logs;
     }
 
     /**
      * Get a REQUEST message from the socket.
      */
     public RequestMessage getRequest() {
-        if (request == null) {
-            throw new IllegalStateException("E: message not available");
-        }
-
-        try {
-            return request;
-        } finally {
-            request = null;
-        }
+        return request;
     }
 
     /**
      * Get a REPLY message from the socket.
      */
     public ReplyMessage getReply() {
-        if (reply == null) {
-            throw new IllegalStateException("E: message not available");
-        }
-
-        try {
-            return reply;
-        } finally {
-            reply = null;
-        }
+        return reply;
     }
 
     /**
      * Send the LOG to the socket in one step.
      */
     public boolean send(LogMessage message) {
-        //  Calculate size of serialized data
-        int frameSize = 2 + 1;        //  Signature and message ID
-        //  sequence is a 4-byte integer
-        frameSize += 4;
-        //  headers is an array of key=value strings
-        frameSize++;        //  Size is one octet
-        if (message.headers != null)
-            frameSize += countDictionary(message.headers);
-        //  ip is a string with 1-byte length
-        frameSize++;        //  Size is one octet
-        if (message.ip != null)
-            frameSize += message.ip.length();
-        //  port is a 2-byte integer
-        frameSize += 2;
-        //  fileName is a string with 1-byte length
-        frameSize++;        //  Size is one octet
-        if (message.fileName != null)
-            frameSize += message.fileName.length();
-        //  lineNum is a 4-byte integer
-        frameSize += 4;
-        //  message is a string with 1-byte length
-        frameSize++;        //  Size is one octet
-        if (message.message != null)
-            frameSize += message.message.length();
-
         //  Now serialize message into the frame
-        byte[] frame = new byte[frameSize];
-        needle = ByteBuffer.wrap(frame); 
-        MessageFlag frameFlag = MessageFlag.NONE;
-        putNumber2(0xAAA0 | 1);
-        putNumber1((byte) 1);         //  Message ID
+        FrameBuilder builder = new FrameBuilder();
+        builder.putShort((short) (0xAAA0 | 1));
+        builder.putByte((byte) 1);       //  Message ID
 
-        putNumber4(message.sequence);
-        if (message.headers != null)
-            writeDictionary(message.headers);
-        else
-            putNumber1((byte) 0);     //  Empty dictionary
-        if (message.ip != null)
-            putString(message.ip);
-        else
-            putNumber1((byte) 0);     //  Empty string
-        putNumber2(message.port);
-        if (message.fileName != null)
-            putString(message.fileName);
-        else
-            putNumber1((byte) 0);     //  Empty string
-        putNumber4(message.lineNum);
-        if (message.message != null)
-            putString(message.message);
-        else
-            putNumber1((byte) 0);     //  Empty string
+        builder.putInt(message.sequence);
+        if (message.headers != null) {
+            builder.putByte((byte) message.headers.size());
+            for (Map.Entry<String, String> entry: message.headers.entrySet()) {
+                builder.putChars(entry.getKey() + "=" + entry.getValue());
+            }
+        } else {
+            builder.putByte((byte) 0);   //  Empty dictionary
+        }
+        if (message.ip != null) {
+            builder.putChars(message.ip);
+        } else {
+            builder.putChars("");        //  Empty string
+        }
+        builder.putShort((short) (int) message.port);
+        if (message.fileName != null) {
+            builder.putChars(message.fileName);
+        } else {
+            builder.putChars("");        //  Empty string
+        }
+        builder.putInt(message.lineNum);
+        if (message.message != null) {
+            builder.putChars(message.message);
+        } else {
+            builder.putChars("");        //  Empty string
+        }
 
-        //  If we're sending to a ROUTER, we send the address first
+        //  Create multi-frame message
+        Message frames = new Message();
+
+        //  If we're sending to a ROUTER, we add the address first
         if (socket.getZMQSocket().getType() == ZMQ.ROUTER) {
             assert (address != null);
-            if (!socket.send(address.getData(), MessageFlag.SEND_MORE)) {
-                return false;
-            }
+            frames.addFrame(address);
         }
 
-        //  Now send the data frame
-        if (!socket.send(frame, frameFlag)) {
-            return false;
-        }
+        //  Now add the data frame
+        frames.addFrame(builder.build());
 
-        //  Now send any frame fields, in order
-
-        return true;
+        return socket.send(frames);
     }
 
     /**
      * Send the LOGS to the socket in one step.
      */
     public boolean send(LogsMessage message) {
-        //  Calculate size of serialized data
-        int frameSize = 2 + 1;        //  Signature and message ID
-        //  sequence is a 4-byte integer
-        frameSize += 4;
-        //  headers is an array of key=value strings
-        frameSize++;        //  Size is one octet
-        if (message.headers != null)
-            frameSize += countDictionary(message.headers);
-        //  ip is a string with 1-byte length
-        frameSize++;        //  Size is one octet
-        if (message.ip != null)
-            frameSize += message.ip.length();
-        //  port is a 2-byte integer
-        frameSize += 2;
-        //  fileName is a string with 1-byte length
-        frameSize++;        //  Size is one octet
-        if (message.fileName != null)
-            frameSize += message.fileName.length();
-        //  lineNum is a 4-byte integer
-        frameSize += 4;
-        //  messages is an array of strings
-        frameSize++;        //  Size is one octet
-        if (message.messages != null)
-            for (String value : message.messages) 
-                frameSize += 1 + value.length();
-
         //  Now serialize message into the frame
-        byte[] frame = new byte[frameSize];
-        needle = ByteBuffer.wrap(frame); 
-        MessageFlag frameFlag = MessageFlag.NONE;
-        putNumber2(0xAAA0 | 1);
-        putNumber1((byte) 2);         //  Message ID
+        FrameBuilder builder = new FrameBuilder();
+        builder.putShort((short) (0xAAA0 | 1));
+        builder.putByte((byte) 2);       //  Message ID
 
-        putNumber4(message.sequence);
-        if (message.headers != null)
-            writeDictionary(message.headers);
-        else
-            putNumber1((byte) 0);     //  Empty dictionary
-        if (message.ip != null)
-            putString(message.ip);
-        else
-            putNumber1((byte) 0);     //  Empty string
-        putNumber2(message.port);
-        if (message.fileName != null)
-            putString(message.fileName);
-        else
-            putNumber1((byte) 0);     //  Empty string
-        putNumber4(message.lineNum);
-        if (message.messages != null) {
-            putNumber1((byte) message.messages.size());
-            for (String value : message.messages) {
-                putString(value);
+        builder.putInt(message.sequence);
+        if (message.headers != null) {
+            builder.putByte((byte) message.headers.size());
+            for (Map.Entry<String, String> entry: message.headers.entrySet()) {
+                builder.putChars(entry.getKey() + "=" + entry.getValue());
             }
+        } else {
+            builder.putByte((byte) 0);   //  Empty dictionary
         }
-        else
-            putNumber1((byte) 0);     //  Empty string array
+        if (message.ip != null) {
+            builder.putChars(message.ip);
+        } else {
+            builder.putChars("");        //  Empty string
+        }
+        builder.putShort((short) (int) message.port);
+        if (message.fileName != null) {
+            builder.putChars(message.fileName);
+        } else {
+            builder.putChars("");        //  Empty string
+        }
+        builder.putInt(message.lineNum);
+        if (message.messages != null) {
+            builder.putByte((byte) message.messages.size());
+            for (String value : message.messages) {
+                builder.putChars(value);
+            }
+        } else {
+            builder.putByte((byte) 0);   //  Empty string array
+        }
 
-        //  If we're sending to a ROUTER, we send the address first
+        //  Create multi-frame message
+        Message frames = new Message();
+
+        //  If we're sending to a ROUTER, we add the address first
         if (socket.getZMQSocket().getType() == ZMQ.ROUTER) {
             assert (address != null);
-            if (!socket.send(address.getData(), MessageFlag.SEND_MORE)) {
-                return false;
-            }
+            frames.addFrame(address);
         }
 
-        //  Now send the data frame
-        if (!socket.send(frame, frameFlag)) {
-            return false;
-        }
+        //  Now add the data frame
+        frames.addFrame(builder.build());
 
-        //  Now send any frame fields, in order
-
-        return true;
+        return socket.send(frames);
     }
 
     /**
      * Send the REQUEST to the socket in one step.
      */
     public boolean send(RequestMessage message) {
-        //  Calculate size of serialized data
-        int frameSize = 2 + 1;        //  Signature and message ID
-        //  sequence is a 4-byte integer
-        frameSize += 4;
-        //  fileName is a string with 1-byte length
-        frameSize++;        //  Size is one octet
-        if (message.fileName != null)
-            frameSize += message.fileName.length();
-        //  start is a 4-byte integer
-        frameSize += 4;
-        //  end is a 4-byte integer
-        frameSize += 4;
-
         //  Now serialize message into the frame
-        byte[] frame = new byte[frameSize];
-        needle = ByteBuffer.wrap(frame); 
-        MessageFlag frameFlag = MessageFlag.NONE;
-        putNumber2(0xAAA0 | 1);
-        putNumber1((byte) 3);         //  Message ID
+        FrameBuilder builder = new FrameBuilder();
+        builder.putShort((short) (0xAAA0 | 1));
+        builder.putByte((byte) 3);       //  Message ID
 
-        putNumber4(message.sequence);
-        if (message.fileName != null)
-            putString(message.fileName);
-        else
-            putNumber1((byte) 0);     //  Empty string
-        putNumber4(message.start);
-        putNumber4(message.end);
+        builder.putInt(message.sequence);
+        if (message.fileName != null) {
+            builder.putChars(message.fileName);
+        } else {
+            builder.putChars("");        //  Empty string
+        }
+        builder.putInt(message.start);
+        builder.putInt(message.end);
 
-        //  If we're sending to a ROUTER, we send the address first
+        //  Create multi-frame message
+        Message frames = new Message();
+
+        //  If we're sending to a ROUTER, we add the address first
         if (socket.getZMQSocket().getType() == ZMQ.ROUTER) {
             assert (address != null);
-            if (!socket.send(address.getData(), MessageFlag.SEND_MORE)) {
-                return false;
-            }
+            frames.addFrame(address);
         }
 
-        //  Now send the data frame
-        if (!socket.send(frame, frameFlag)) {
-            return false;
-        }
+        //  Now add the data frame
+        frames.addFrame(builder.build());
 
-        //  Now send any frame fields, in order
-
-        return true;
+        return socket.send(frames);
     }
 
     /**
      * Send the REPLY to the socket in one step.
      */
     public boolean send(ReplyMessage message) {
-        //  Calculate size of serialized data
-        int frameSize = 2 + 1;        //  Signature and message ID
-        //  sequence is a 4-byte integer
-        frameSize += 4;
-        //  headers is an array of key=value strings
-        frameSize++;        //  Size is one octet
-        if (message.headers != null)
-            frameSize += countDictionary(message.headers);
-        //  messages is an array of strings
-        frameSize++;        //  Size is one octet
-        if (message.messages != null)
-            for (String value : message.messages) 
-                frameSize += 1 + value.length();
-
         //  Now serialize message into the frame
-        byte[] frame = new byte[frameSize];
-        needle = ByteBuffer.wrap(frame); 
-        MessageFlag frameFlag = MessageFlag.NONE;
-        putNumber2(0xAAA0 | 1);
-        putNumber1((byte) 4);         //  Message ID
+        FrameBuilder builder = new FrameBuilder();
+        builder.putShort((short) (0xAAA0 | 1));
+        builder.putByte((byte) 4);       //  Message ID
 
-        putNumber4(message.sequence);
-        if (message.headers != null)
-            writeDictionary(message.headers);
-        else
-            putNumber1((byte) 0);     //  Empty dictionary
-        if (message.messages != null) {
-            putNumber1((byte) message.messages.size());
-            for (String value : message.messages) {
-                putString(value);
+        builder.putInt(message.sequence);
+        if (message.headers != null) {
+            builder.putByte((byte) message.headers.size());
+            for (Map.Entry<String, String> entry: message.headers.entrySet()) {
+                builder.putChars(entry.getKey() + "=" + entry.getValue());
             }
+        } else {
+            builder.putByte((byte) 0);   //  Empty dictionary
         }
-        else
-            putNumber1((byte) 0);     //  Empty string array
+        if (message.messages != null) {
+            builder.putByte((byte) message.messages.size());
+            for (String value : message.messages) {
+                builder.putChars(value);
+            }
+        } else {
+            builder.putByte((byte) 0);   //  Empty string array
+        }
 
-        //  If we're sending to a ROUTER, we send the address first
+        //  Create multi-frame message
+        Message frames = new Message();
+
+        //  If we're sending to a ROUTER, we add the address first
         if (socket.getZMQSocket().getType() == ZMQ.ROUTER) {
             assert (address != null);
-            if (!socket.send(address.getData(), MessageFlag.SEND_MORE)) {
-                return false;
-            }
+            frames.addFrame(address);
         }
 
-        //  Now send the data frame
-        if (!socket.send(frame, frameFlag)) {
-            return false;
-        }
+        //  Now add the data frame
+        frames.addFrame(builder.build());
 
-        //  Now send any frame fields, in order
-
-        return true;
+        return socket.send(frames);
     }
 }
 

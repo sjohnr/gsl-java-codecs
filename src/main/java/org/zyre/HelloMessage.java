@@ -1,7 +1,7 @@
 /* ============================================================================
- * ReplyMessage.java
+ * HelloMessage.java
  * 
- * Generated codec class for ReplyMessage
+ * Generated codec class for HelloMessage
  * ----------------------------------------------------------------------------
  * This is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by   
@@ -18,7 +18,7 @@
  * http://www.gnu.org/licenses.                                         
  * ============================================================================
  */
-package org.distlog4j;
+package org.zyre;
 
 import java.util.*;
 
@@ -26,14 +26,17 @@ import org.zeromq.api.*;
 import org.zeromq.api.Message.Frame;
 
 /**
- * ReplyMessage class.
+ * HelloMessage class.
  */
-public class ReplyMessage {
-    public static final LogSocket.MessageType MESSAGE_TYPE = LogSocket.MessageType.REPLY;
+public class HelloMessage {
+    public static final ZreSocket.MessageType MESSAGE_TYPE = ZreSocket.MessageType.HELLO;
 
     protected Integer sequence;
+    protected String ipAddress;
+    protected Integer mailbox;
+    protected List<String> groups;
+    protected Integer status;
     protected Map<String, String> headers;
-    protected List<String> messages;
 
     /**
      * Get the sequence field.
@@ -51,6 +54,90 @@ public class ReplyMessage {
      */
     public void setSequence(Integer sequence) {
         this.sequence = sequence;
+    }
+
+    /**
+     * Get the ipAddress field.
+     * 
+     * @return The ipAddress field
+     */
+    public String getIpAddress() {
+        return ipAddress;
+    }
+
+    /**
+     * Set the ipAddress field.
+     * 
+     * @param ipAddress The ipAddress field
+     */
+    public void setIpAddress(String ipAddress) {
+        this.ipAddress = ipAddress;
+    }
+
+    /**
+     * Get the mailbox field.
+     * 
+     * @return The mailbox field
+     */
+    public Integer getMailbox() {
+        return mailbox;
+    }
+
+    /**
+     * Set the mailbox field.
+     * 
+     * @param mailbox The mailbox field
+     */
+    public void setMailbox(Integer mailbox) {
+        this.mailbox = mailbox;
+    }
+
+    /**
+     * Get the list of groups strings.
+     * 
+     * @return The groups strings
+     */
+    public List<String> getGroups() {
+        if (groups == null) {
+            groups = new ArrayList<>();
+        }
+        return groups;
+    }
+
+    /**
+     * Append a value to the groups field.
+     *
+     * @param value The value
+     */
+    public void addGroup(String value) {
+        getGroups().add(value);
+    }
+
+    /**
+     * Set the list of groups strings.
+     * 
+     * @param groups The groups collection
+     */
+    public void setGroups(List<String> groups) {
+        this.groups = groups;
+    }
+
+    /**
+     * Get the status field.
+     * 
+     * @return The status field
+     */
+    public Integer getStatus() {
+        return status;
+    }
+
+    /**
+     * Set the status field.
+     * 
+     * @param status The status field
+     */
+    public void setStatus(Integer status) {
+        this.status = status;
     }
 
     /**
@@ -145,35 +232,4 @@ public class ReplyMessage {
     public void setHeaders(Map<String, String> headers) {
         this.headers = headers;
     }
-
-    /**
-     * Get the list of messages strings.
-     * 
-     * @return The messages strings
-     */
-    public List<String> getMessages() {
-        if (messages == null) {
-            messages = new ArrayList<>();
-        }
-        return messages;
-    }
-
-    /**
-     * Append a value to the messages field.
-     *
-     * @param value The value
-     */
-    public void addMessage(String value) {
-        getMessages().add(value);
-    }
-
-    /**
-     * Set the list of messages strings.
-     * 
-     * @param messages The messages collection
-     */
-    public void setMessages(List<String> messages) {
-        this.messages = messages;
-    }
 }
-

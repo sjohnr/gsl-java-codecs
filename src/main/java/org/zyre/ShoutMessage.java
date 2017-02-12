@@ -1,7 +1,7 @@
 /* ============================================================================
- * RequestMessage.java
+ * ShoutMessage.java
  * 
- * Generated codec class for RequestMessage
+ * Generated codec class for ShoutMessage
  * ----------------------------------------------------------------------------
  * This is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by   
@@ -18,7 +18,7 @@
  * http://www.gnu.org/licenses.                                         
  * ============================================================================
  */
-package org.distlog4j;
+package org.zyre;
 
 import java.util.*;
 
@@ -26,15 +26,14 @@ import org.zeromq.api.*;
 import org.zeromq.api.Message.Frame;
 
 /**
- * RequestMessage class.
+ * ShoutMessage class.
  */
-public class RequestMessage {
-    public static final LogSocket.MessageType MESSAGE_TYPE = LogSocket.MessageType.REQUEST;
+public class ShoutMessage {
+    public static final ZreSocket.MessageType MESSAGE_TYPE = ZreSocket.MessageType.SHOUT;
 
     protected Integer sequence;
-    protected String fileName;
-    protected Integer start;
-    protected Integer end;
+    protected String group;
+    protected Frame content = Message.EMPTY_FRAME;
 
     /**
      * Get the sequence field.
@@ -55,56 +54,38 @@ public class RequestMessage {
     }
 
     /**
-     * Get the fileName field.
+     * Get the group field.
      * 
-     * @return The fileName field
+     * @return The group field
      */
-    public String getFileName() {
-        return fileName;
+    public String getGroup() {
+        return group;
     }
 
     /**
-     * Set the fileName field.
+     * Set the group field.
      * 
-     * @param fileName The fileName field
+     * @param group The group field
      */
-    public void setFileName(String fileName) {
-        this.fileName = fileName;
+    public void setGroup(String group) {
+        this.group = group;
     }
 
     /**
-     * Get the start field.
+     * Get the content field.
      * 
-     * @return The start field
+     * @return The content field
      */
-    public Integer getStart() {
-        return start;
+    public Frame getContent() {
+        return content;
     }
 
     /**
-     * Set the start field.
+     * Set the content field, and takes ownership of supplied frame.
      * 
-     * @param start The start field
+     * @param frame The new content frame
      */
-    public void setStart(Integer start) {
-        this.start = start;
-    }
-
-    /**
-     * Get the end field.
-     * 
-     * @return The end field
-     */
-    public Integer getEnd() {
-        return end;
-    }
-
-    /**
-     * Set the end field.
-     * 
-     * @param end The end field
-     */
-    public void setEnd(Integer end) {
-        this.end = end;
+    public void setContent(Frame frame) {
+        content = frame;
     }
 }

@@ -23,19 +23,20 @@ package org.distlog4j;
 import java.util.*;
 
 import org.zeromq.api.*;
+import org.zeromq.api.Message.Frame;
 
 /**
- * LogsMessage codec.
+ * LogsMessage class.
  */
 public class LogsMessage {
     public static final LogSocket.MessageType MESSAGE_TYPE = LogSocket.MessageType.LOGS;
 
-    protected long sequence;
+    protected Integer sequence;
     protected Map<String, String> headers;
     protected String ip;
-    protected int port;
+    protected Integer port;
     protected String fileName;
-    protected long lineNum;
+    protected Integer lineNum;
     protected List<String> messages;
 
     /**
@@ -43,7 +44,7 @@ public class LogsMessage {
      * 
      * @return The sequence field
      */
-    public long getSequence() {
+    public Integer getSequence() {
         return sequence;
     }
 
@@ -52,7 +53,7 @@ public class LogsMessage {
      * 
      * @param sequence The sequence field
      */
-    public void setSequence(long sequence) {
+    public void setSequence(Integer sequence) {
         this.sequence = sequence;
     }
 
@@ -62,6 +63,9 @@ public class LogsMessage {
      * @return The headers dictionary
      */
     public Map<String, String> getHeaders() {
+        if (headers == null) {
+            headers = new HashMap<>();
+        }
         return headers;
     }
 
@@ -72,12 +76,10 @@ public class LogsMessage {
      * @param defaultValue The default value if the key does not exist
      */
     public String getHeader(String key, String defaultValue) {
-        String value = null;
-        if (headers != null)
-            value = headers.get(key);
-        if (value == null)
-            value = defaultValue;
-
+        String value = defaultValue;
+        if (headers != null) {
+            value = headers.getOrDefault(key, defaultValue);
+        }
         return value;
     }
 
@@ -89,47 +91,34 @@ public class LogsMessage {
      */
     public long getHeader(String key, long defaultValue) {
         long value = defaultValue;
-        String string = null;
-        if (headers != null)
-            string = headers.get(key);
-        if (string != null)
-            value = Long.parseLong(string);
-
+        if (headers != null && headers.containsKey(key)) {
+            value = Long.parseLong(headers.get(key));
+        }
         return value;
     }
 
     /**
      * Get a value in the headers dictionary as a long.
-     * 
+     *
      * @param key The dictionary key
      * @param defaultValue The default value if the key does not exist
      */
-    public long getHeader(String key, int defaultValue) {
+    public int getHeader(String key, int defaultValue) {
         int value = defaultValue;
-        String string = null;
-        if (headers != null)
-            string = headers.get(key);
-        if (string != null)
-            value = Integer.parseInt(string);
-
+        if (headers != null && headers.containsKey(key)) {
+            value = Integer.parseInt(headers.get(key));
+        }
         return value;
     }
 
     /**
      * Set a value in the headers dictionary.
-     * 
+     *
      * @param key The dictionary key
-     * @param format The string format
-     * @param args The arguments used to build the string
+     * @param value The value
      */
-    public void putHeader(String key, String format, Object... args) {
-        //  Format string into buffer
-        String string = String.format(format, args);
-
-        //  Store string in hash table
-        if (headers == null)
-            headers = new HashMap<String, String>();
-        headers.put(key, string);
+    public void putHeader(String key, String value) {
+        getHeaders().put(key, value);
     }
 
     /**
@@ -139,10 +128,7 @@ public class LogsMessage {
      * @param value The value
      */
     public void putHeader(String key, int value) {
-        //  Store string in hash table
-        if (headers == null)
-            headers = new HashMap<String, String>();
-        headers.put(key, String.valueOf(value));
+        getHeaders().put(key, String.valueOf(value));
     }
 
     /**
@@ -152,22 +138,16 @@ public class LogsMessage {
      * @param value The value
      */
     public void putHeader(String key, long value) {
-        //  Store string in hash table
-        if (headers == null)
-            headers = new HashMap<String, String>();
-        headers.put(key, String.valueOf(value));
+        getHeaders().put(key, String.valueOf(value));
     }
 
     /**
      * Set the headers dictionary.
      * 
-     * @param value The new headers dictionary
+     * @param headers The new headers dictionary
      */
-    public void setHeaders(Map<String, String> value) {
-        if (value != null)
-            headers = new HashMap<String, String>(value); 
-        else
-            headers = value;
+    public void setHeaders(Map<String, String> headers) {
+        this.headers = headers;
     }
 
     /**
@@ -184,9 +164,8 @@ public class LogsMessage {
      * 
      * @param ip The ip field
      */
-    public void setIp(String format, Object... args) {
-        //  Format into newly allocated string
-        ip = String.format(format, args);
+    public void setIp(String ip) {
+        this.ip = ip;
     }
 
     /**
@@ -194,7 +173,7 @@ public class LogsMessage {
      * 
      * @return The port field
      */
-    public int getPort() {
+    public Integer getPort() {
         return port;
     }
 
@@ -203,7 +182,7 @@ public class LogsMessage {
      * 
      * @param port The port field
      */
-    public void setPort(int port) {
+    public void setPort(Integer port) {
         this.port = port;
     }
 
@@ -221,9 +200,8 @@ public class LogsMessage {
      * 
      * @param fileName The fileName field
      */
-    public void setFileName(String format, Object... args) {
-        //  Format into newly allocated string
-        fileName = String.format(format, args);
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
     }
 
     /**
@@ -231,7 +209,7 @@ public class LogsMessage {
      * 
      * @return The lineNum field
      */
-    public long getLineNum() {
+    public Integer getLineNum() {
         return lineNum;
     }
 
@@ -240,7 +218,7 @@ public class LogsMessage {
      * 
      * @param lineNum The lineNum field
      */
-    public void setLineNum(long lineNum) {
+    public void setLineNum(Integer lineNum) {
         this.lineNum = lineNum;
     }
 
@@ -250,31 +228,27 @@ public class LogsMessage {
      * @return The messages strings
      */
     public List<String> getMessages() {
+        if (messages == null) {
+            messages = new ArrayList<>();
+        }
         return messages;
     }
 
     /**
-     * Iterate through the messages field, and append a messages value.
-     * 
-     * @param format The string format
-     * @param args The arguments used to build the string
+     * Append a value to the messages field.
+     *
+     * @param value The value
      */
-    public void addMessage(String format, Object... args) {
-        //  Format into newly allocated string
-        String string = String.format(format, args);
-
-        //  Attach string to list
-        if (messages == null)
-            messages = new ArrayList<String>();
-        messages.add(string);
+    public void addMessage(String value) {
+        getMessages().add(value);
     }
 
     /**
      * Set the list of messages strings.
      * 
-     * @param value The collection of strings
+     * @param messages The messages collection
      */
-    public void setMessages(Collection<String> value) {
-        messages = new ArrayList<String>(value);
+    public void setMessages(List<String> messages) {
+        this.messages = messages;
     }
 }

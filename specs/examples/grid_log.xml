@@ -1,4 +1,4 @@
-<class name="grid_log_message" signature="2" title="Class encapsulating distributed logging for GridMasters">
+<class name="grid_log" signature="2" title="Class encapsulating distributed logging for GridMasters">
 	This is the GRID logging protocol.
 
 	<include filename="license.xml" />
